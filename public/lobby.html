@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lobby - Life Point Counter</title>
+    <link rel="stylesheet" href="./style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
+
+    <script src="./js/lobbyScript.js" type="module"></script>
+    
+
+</head>
+<body>
+    <div id="lobby-container" class="flex flex-col items-center p-6 space-y-6 bg-gradient-to-br from-purple-600 to-indigo-800 text-white min-h-screen w-full">
+        <div id="lobby-number" class="absolute top-4 left-4 text-xl font-bold">1234</div>
+        
+        <div id="player-grid" class="grid grid-cols-2 gap-4 w-full max-w-md">
+            <!-- Player names will be added here by JavaScript -->
+        </div>
+
+        <button id="exit-lobby-button" class="mt-auto px-6 py-3 bg-red-600 hover:bg-red-700 rounded-md text-white font-semibold">
+            Exit Lobby
+        </button>
+        <button id="add-dummy-player-button" class="mt-4 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-md text-white font-semibold">
+            Add Dummy Player
+        </button>
+        <button id="remove-dummy-player-button" class="mt-4 px-6 py-3 bg-yellow-600 hover:bg-yellow-700 rounded-md text-white font-semibold">
+            Remove Dummy Player
+        </button>
+    </div>
+</body>
+</html>
+
+
+

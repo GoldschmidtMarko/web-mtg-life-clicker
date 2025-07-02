@@ -1,0 +1,8 @@
+.player-frame {
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centers content vertically */
+    align-items: center;
+    font-size: 2.0em; /* Adjust the size as needed */
+    border: 1px solid black; /* Adds a small black border */
+}
