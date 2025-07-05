@@ -17,6 +17,7 @@ exports.createLobby = functions.https.onCall({ cors: true }, async (data, contex
 
   // 2. Generate a unique lobby code (simple 6-character code)
   const lobbyCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+  console.log("Generating lobby code:", lobbyCode);
 
   // 3. Create the lobby in Cloud Firestore
   const db = admin.firestore();
@@ -25,10 +26,11 @@ exports.createLobby = functions.https.onCall({ cors: true }, async (data, contex
   await lobbyRef.set({
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     hostId: userId,
-    // We will use a subcollection for players
   });
 
+  console.log("Lobby created in Firestore for code:", lobbyCode);
   // Add the host as the first player in the 'players' subcollection
+
   await lobbyRef.collection('players').doc(userId).set({
     name: playerName,
     life: 8000
@@ -60,10 +62,11 @@ exports.joinLobby = functions.https.onCall({ cors: true }, async (data, context)
   }
 
   // 3. Get lobby reference and check if it exists (use admin.database())
-  const lobbyRef = admin.database().ref(`/lobbies/${lobbyCode}`);
-  const lobbySnapshot = await lobbyRef.once('value');
+  const db = admin.firestore();
+  const lobbyRef = db.collection('lobbies').doc(lobbyCode);
+  const lobbyDoc = await lobbyRef.get();
 
-  if (!lobbySnapshot.exists()) {
+  if (!lobbyDoc.exists) {
     throw new functions.https.HttpsError( // Use functions.https.HttpsError
       'not-found',
       'Lobby not found.'
@@ -71,7 +74,7 @@ exports.joinLobby = functions.https.onCall({ cors: true }, async (data, context)
   }
 
   // 4. Add the player to the lobby
-  await lobbyRef.child('players').update({
+  await lobbyRef.collection('players').doc(userId).set({
     [userId]: { name: playerName, life: 8000 }
   });
 });
