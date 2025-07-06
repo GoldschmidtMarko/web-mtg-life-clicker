@@ -29,7 +29,7 @@ export async function createLobbyClientSide(player) {
   const lobbyRef = db.collection('lobbies').doc(lobbyCode);
 
   const newLobby = new Lobby(
-    'someCode', // You'll need to generate a unique lobby code
+    lobbyCode, // You'll need to generate a unique lobby code
     userId,
     playerName,
     firebase.firestore.FieldValue.serverTimestamp(),
@@ -51,5 +51,15 @@ export async function createLobbyClientSide(player) {
   }
 }
 
-// You can add other temporary client-side functions here later
-// For example, a joinLobbyClientSide function
+export async function joinLobbyClientSide(player, lobbyCode) {
+  // 1. Get the authenticated user
+  const user = firebase.auth().currentUser;
+  if (!user) {
+    console.error("User not authenticated.");
+    throw new Error("User not authenticated."); // Throw an error if user is not logged in
+  }
+  const db = firebase.firestore(); // Use client-side firestore
+  const lobbyRef = db.collection('lobbies').doc(lobbyCode);
+  console.log(player)
+  lobbyRef.collection('players').doc(player.id).set(player.toFirestoreObject());
+}

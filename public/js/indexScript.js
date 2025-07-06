@@ -1,5 +1,5 @@
 import { firebaseConfig } from './firebaseConfig.js'; // Keep this import
-import { createLobbyClientSide } from './tempFunctions.js';
+import { createLobbyClientSide, joinLobbyClientSide } from './tempFunctions.js';
 import { Player } from './models.js';
 
 // Initialize Firebase
@@ -21,6 +21,7 @@ const joinLobbyBtn = document.getElementById('join-lobby-btn');
 const userIdDisplay = document.getElementById('user-id-display');
 const userIdValue = document.getElementById('user-id-value');
 const signInButton = document.getElementById('sign-in-button');
+const joinLobbyUserName = document.getElementById('remote-player-name-input');
 
 
 let currentUser = null;
@@ -63,20 +64,22 @@ function signIn() {
 }
 
 // Get callable functions (can be defined inside or outside DOMContentLoaded)
-// const createLobbyCallable = functions.httpsCallable('createLobby');
-const joinLobbyCallable = functions.httpsCallable('joinLobby');
+// TODO const createLobbyCallable = functions.httpsCallable('createLobby');
+// TODO const joinLobbyCallable = functions.httpsCallable('joinLobby');
 
 
 // Event listener for Create New Lobby button *inside* this listener
 if (createLobbyBtn) {
     createLobbyBtn.addEventListener('click', async () => {
-        const playerName = currentUser.displayName || 'Player'; // Use input value or display name
+        const playerName = currentUser.displayName.split(" ")[0] || "Player"
         const playerClass = new Player(
             currentUser.uid,
             playerName,
             40,
             0,
-            0
+            0,
+            "#FFFFFF",
+            "#000000"
         )
         try {
             const result = await createLobbyClientSide(playerClass);
@@ -95,9 +98,21 @@ if (createLobbyBtn) {
 // Event listener for Join Lobby button *inside* this listener
 if (joinLobbyBtn) {
     joinLobbyBtn.addEventListener('click', async () => {
+        const playerName = joinLobbyUserName.value || "Player"
         const lobbyCode = lobbyCodeInput.value;
         try {
-            const result = await joinLobbyCallable({ lobbyCode: lobbyCode });
+            const player = new Player(
+                currentUser.uid,
+                playerName,
+                40,
+                0,
+                0,
+                "#FFFFFF",
+                "#000000"
+            );
+            const result = await joinLobbyClientSide(
+                player, lobbyCode
+            );
             console.log('Joined lobby with code:', lobbyCode);
             // Redirect to the lobby page, passing the lobby code
             window.location.href = `/lobby.html?lobbyId=${lobbyCode}`;

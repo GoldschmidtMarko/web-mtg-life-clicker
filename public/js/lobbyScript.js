@@ -1,4 +1,5 @@
 import { firebaseConfig } from './firebaseConfig.js';
+import { openSettingsModal } from './settingsModalScript.js';
 import "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js";
 
 // Initialize Firebase
@@ -43,9 +44,11 @@ if (lobbyId) {
             const playerLife = playerDocument.data().life;
             const damageToAppy = playerDocument.data().damageToAppy;
             const playerFrame = document.createElement('button'); // Change div to button
+            playerFrame.style.backgroundColor = playerDocument.data().backgroundColor;
+            playerFrame.style.color = playerDocument.data().fontColor;
             playerFrame.classList.add('player-frame'); // Add a class for styling
             const nameElement = document.createElement('div');
-            nameElement.textContent = `Name: ${playerName}`;
+            nameElement.textContent = `${playerName}`;
             playerFrame.appendChild(nameElement);
             const lifeElement = document.createElement('div');
             if (damageToAppy == 0) {
@@ -59,7 +62,7 @@ if (lobbyId) {
 
             // Add the "X" button
             const removeButton = document.createElement('button');
-            removeButton.textContent = 'X';
+            removeButton.textContent = '✖️'
             removeButton.classList.add('remove-player-button'); // Add a class for styling
             removeButton.addEventListener('click', async (event) => {
                 event.stopPropagation(); // Prevent the click from triggering the playerFrame's life update
@@ -67,12 +70,23 @@ if (lobbyId) {
                     await playersSubcollectionRef.doc(playerDocument.id).delete();
                 });
             });
+            // add settings button top right
+            const settingsButton = document.createElement('button');
+            settingsButton.textContent = '⚙️';
+            settingsButton.classList.add('settings-button'); // Add a class for styling
+            settingsButton.addEventListener('click', async (event) => {
+                event.stopPropagation(); // Prevent the click from triggering the playerFrame's life update
+                openSettingsModal(playerDocument.id, playerName);
+            });
+
 
             // Store the playerDocument.id on the remove button for later use in the modal confirmation
             removeButton.dataset.playerId = playerDocument.id;
 
             // Add event listener to the button
             playerFrame.addEventListener('click', async (event) => {
+                const lobbyDoc = await firebase.firestore().collection(lobbyCollectionName).doc(lobbyId);
+                lobbyDoc.update({ lastUpdated: firebase.firestore.FieldValue.serverTimestamp() });
                 const buttonWidth = playerFrame.offsetWidth;
                 const clickX = event.clientX - playerFrame.getBoundingClientRect().left;
                 try {
@@ -90,6 +104,7 @@ if (lobbyId) {
             });
 
             playerFrame.prepend(removeButton); // Add the remove button before other elements
+            playerFrame.prepend(settingsButton); // Add the remove button before other elements
             playerGrid.appendChild(playerFrame);
         })
     })
@@ -122,7 +137,9 @@ if (lobbyId) {
         playersSubcollectionRef.add({
             name: randomNames[Math.floor(Math.random() * randomNames.length)],
             life: Math.floor(Math.random() * 100),
-            damageToAppy: 0
+            damageToAppy: 0,
+            backgroundColor: "#FFFFFF",
+            fontColor: "#000000",
         })
     })
 
@@ -166,4 +183,22 @@ document.getElementById('exit-lobby-button').addEventListener('click', () => {
     window.location.href = '../index.html';
     
 });
+
+const settingsButton = document.getElementById('settings-button');
+const settingsFrame = document.getElementById('settings-frame');
+
+settingsButton.addEventListener('click', () => {
+    settingsFrame.classList.toggle('hidden');
+});
+
+const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
+const resetLifeButton = document.getElementById('reset-life-button');
+resetLifeButton.addEventListener('click', async () => {
+    const lifeToSet = document.getElementById('reset-life-input').value;
+    const players = await playersSubcollectionRef.get();
+    players.forEach(async (playerDocument) => {
+        await playersSubcollectionRef.doc(playerDocument.id).update({ life: lifeToSet, damageToAppy: 0, infect: 0 });
+    });
+});
+
 

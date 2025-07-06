@@ -8,50 +8,71 @@
     position: relative; /* Needed for positioning the remove button */
 }
 
+.settings-button {
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    background-color: transparent;
+}
+
 .remove-player-button {
     position: absolute;
     top: 2px;
     left: 3px;
     background-color: transparent;
-    border: none;
-    color: red; /* Or any color you prefer for the 'X' */
-    border-radius: 50%; /* Makes the button circular */
-    border: 1px solid red; /* Adds a red circle border */
-    font-size: 1em; /* Adjust size of the 'X' */
-    cursor: pointer;    
-    padding: 0 4px; /* Adjust horizontal padding to make it more circular */
-    line-height: 1.2; /* Adjust line height to vertically center the 'X' */
-    font-size: 0.8em; /* Adjust the size as needed */
 }
 
 /* Add modal styles */
-.modal-overlay {
+.modal {
     display: none; /* Hidden by default */
     position: fixed; /* Ensure it covers the whole viewport */
-    z-index: 1;
+    z-index: 1000; /* High z-index to be on top */
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    overflow: auto; /* Enable scrolling if needed */
     background-color: rgba(0,0,0,0.4); /* Semi-transparent black background */
     display: flex; /* Use flexbox for centering */
     align-items: center; /* Center vertically */
+    justify-content: center; /* Center horizontally */
 }
 
 .modal-content {
     background-color: #fefefe;
     margin: auto;
     padding: 20px;
-    border: 1px solid #888;
-    width: 80%; /* Could be responsive */
-    max-width: 400px; /* Maximum width */
     border-radius: 10px;
-    text-align: center;
+    width: 90%; /* Responsive width */
+    max-width: 400px; /* Max width */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Add a subtle shadow */
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Spacing between items */
+}
+.modal-content {
+    font-size: 1.1em;
+    color: #000;
 }
 
-.modal-buttons button {
-    margin: 10px;
-    padding: 8px 15px;
-    cursor: pointer;
+
+
+
+#dice-display {
+    left: 80%;
+    top: 80%;
+    position: fixed;
+    transform: translate(-50%, -50%) rotate(840deg);
+    width: 80px; /* Adjust size as needed */
+    height: 80px; /* Adjust size as needed */
+    background-color: rgb(119, 114, 114);
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 3em; /* Adjust font size as needed */
+    font-weight: bold;
+    color: black;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: none; /* Initially hidden */
 }
