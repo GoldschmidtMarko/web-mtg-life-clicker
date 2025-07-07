@@ -2,11 +2,11 @@
 
 // Define a class for the Player
 class Player {
-  constructor(id, name, life, damageToAppy, infect, backgroundColor, fontColor) { // Add damageToApply and infect here
+  constructor(id, name, life, damageToApply, infect, backgroundColor, fontColor) { // Add damageToApply and infect here
     this.id = id; // Player's unique ID (e.g., Firebase Auth UID).
     this.name = name; // Player's display name.
     this.life = life; // Player's life total.
-    this.damageToAppy = damageToAppy; // Player's damage to apply
+    this.damageToApply = damageToApply; // Player's damage to apply
     this.infect = infect; // Player's infect status
     this.backgroundColor = backgroundColor;
     this.fontColor = fontColor;
@@ -18,7 +18,7 @@ class Player {
       id: this.id,
       name: this.name,
       life: this.life,
-      damageToAppy: this.damageToAppy,
+      damageToApply: this.damageToApply,
       infect: this.infect,
       backgroundColor: this.backgroundColor,
       fontColor: this.fontColor
