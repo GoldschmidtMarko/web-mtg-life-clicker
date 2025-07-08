@@ -1,102 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lobby - Life Point Counter</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
+
+    <!-- Custom JS -->
     <script src="js/lobbyScript.js" type="module"></script>
     <script src="js/settingsModalScript.js" type="module"></script>
     <script src="js/diceAnimation.js" type="module"></script>
+
+    <!-- Styles -->
     <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="./styles/lobby.css">
 </head>
-<body>
-    <div id="lobby-container" class="flex flex-col items-center p-6 space-y-6 bg-gradient-to-br from-purple-600 to-indigo-800 text-white min-h-screen w-full">
-        <div class="absolute top-4 left-4 flex flex-col items-start w-1/2">
-            <!-- Lobby Number and Exit Button -->
-           <div id="lobby-info" class="mt-4">
-                <div id="lobby-number" class="text-xl font-bold">1234</div>
-                <button id="exit-lobby-button" class="mt-auto px-6 py-3 bg-red-600 hover:bg-red-700 rounded-md text-white font-semibold">
-                    Exit Lobby
+
+<body class="bg-gradient-to-br from-purple-600 to-indigo-800 text-white min-h-screen">
+
+    <div id="lobby-container" class="flex flex-col p-6 space-y-6 w-full">
+
+        <!-- Top Section -->
+        <div class="flex flex-col md:flex-row md:gap-x-4 w-full">
+
+            <!-- Left Panel -->
+            <aside class="left-section flex flex-col w-full md:w-1/6 space-y-4">
+
+                <div id="lobby-info" class="space-y-2">
+                    <div id="lobby-number" class="text-xl font-bold">1234</div>
+                    <button id="exit-lobby-button"
+                        class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-md font-semibold">Exit Lobby</button>
+                </div>
+
+                <button id="settings-button" class="self-start w-auto p-2 bg-gray-700 hover:bg-gray-600 rounded-md">
+                    <i class="fas fa-cogs"></i>
                 </button>
-            </div>
 
-            <button id="settings-button" class="px-4 py-2 mt-2 bg-gray-700 hover:bg-gray-600 rounded-md text-white font-semibold">
-                <i class="fas fa-cogs"></i> 
-            </button>
-            <!-- Folding Frame -->
-            <div id="settings-frame" class="folding-frame hidden mt-2 p-4 bg-gray-800 rounded-md shadow-lg">
-                <div class="flex flex-col space-y-2">
-                    <div class="flex space-x-2 items-start">
-                        <button id="reset-life-button" class="w-2/3 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-white font-semibold">Reset Life</button>
-                        <input type="number" id="reset-life-input" class="w-24 p-1 rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 text-gray-700 placeholder-gray-400 text-lg" value="40">
+                <!-- Settings Dropdown -->
+                <div id="settings-frame" class="folding-frame hidden p-4 bg-gray-800 rounded-md shadow-lg space-y-2">
+                    <div class="flex gap-2 items-center">
+                        <button id="reset-life-button"
+                            class="flex-1 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md font-semibold">Reset
+                            Life</button>
+                        <input id="reset-life-input" type="number" value="40"
+                            class="w-20 p-1 rounded border-2 text-gray-700" />
                     </div>
-                    <div class="flex space-x-2 items-start">
-                        <button id="dice" class="w-1/2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-md text-white font-semibold">Dice</button>
-                        <input type="number" id="dice-eyes" class="w-24 p-1 rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 text-gray-700 placeholder-gray-400 text-lg" value="20">
+                    <div class="flex gap-2 items-center">
+                        <button id="dice"
+                            class="flex-1 bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-md font-semibold">Dice</button>
+                        <input id="dice-eyes" type="number" value="20"
+                            class="w-20 p-1 rounded border-2 text-gray-700" />
                     </div>
-                    <button class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md text-white font-semibold">Feature 2</button>
-                    <button class="w-full px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-white font-semibold">Feature 3</button>
+                    <button class="w-full bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md font-semibold">Feature
+                        2</button>
+                    <button class="w-full bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Feature
+                        3</button>
                 </div>
-            </div>
-        </div>
-        
-        <div id="player-grid" class="grid grid-cols-2 gap-4 w-full max-w-md">
-            <!-- Player names will be added here by JavaScript -->
-        </div>
 
-        <button id="add-dummy-player-button" class="mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-md text-white font-semibold">
-            Add Dummy Player
-        </button>
+            </aside>
 
-        <div class="flex justify-center space-x-4 mt-4">
-            <button id="abort-button" class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-md text-white font-semibold">
-                Abort
-            </button>
-            <button id="apply-button" class="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-md text-white font-semibold">
-                Apply
-            </button>
-        </div>
-    </div>
+            <!-- Right Panel -->
+            <div class="flex flex-col h-screen w-full md:w-3/4 p-4">
 
+                <!-- Scrollable Player Grid -->
+                <div id="player-grid" class="grid grid-cols-2 md:grid-cols-2 gap-4 overflow-y-auto flex-grow">
+                    <!-- Players added dynamically -->
+                </div>
 
-    <div id="confirmation-modal" class="modal-container hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
-        <div class="modal-content">
-            <div>
-                <p id="modal-Message" class="text-lg font-semibold mb-4">Are you sure you want to remove this player?</p>
-                <div class="flex justify-center space-x-4">
-                    <button id="confirm-remove-button" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-semibold">Confirm</button>
-                    <button id="cancel-remove-button" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-md font-semibold">Cancel</button>
+                <!-- Fixed Buttons at Bottom -->
+                <div class="flex flex-col items-center mt-4 space-y-4 shrink-0 pb-6">
+                    <button id="add-dummy-player-button"
+                        class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-md font-semibold">Add Dummy
+                        Player</button>
+                    <div class="flex gap-4">
+                        <button id="abort-button"
+                            class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-md font-semibold">Abort</button>
+                        <button id="apply-button"
+                            class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-md font-semibold">Apply</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="settingsModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
-        <div class="modal-content bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm flex flex-col items-center space-y-6 border-4 border-indigo-300">
-            <h2 class="text-3xl font-semibold text-gray-800">Settings</h2>
-            <div class="w-full space-y-4">
-                <label for="username" class="block text-lg font-medium text-gray-700">Name:</label>
-                <input type="text" id="username" class="w-full p-3 rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 text-gray-700 placeholder-gray-400 text-lg" placeholder="Enter username">
-
-                <label for="bgColor" class="block text-lg font-medium text-gray-700">Background Color:</label>
-                <input type="color" id="bgColor" value="#FFFFFF" class="w-full p-1 h-10 rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200">
-
-
-
-                <label for="fontColor" class="block text-lg font-medium text-gray-700">Font Color:</label>
-                <input type="color" id="fontColor" class="w-full p-1 h-10 rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200">
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal"
+        class="modal-container hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="modal-content bg-white text-black p-6 rounded-lg shadow-xl w-full max-w-sm space-y-4">
+            <p id="modal-Message" class="text-lg font-semibold">Are you sure you want to remove this player?</p>
+            <div class="flex justify-center gap-4">
+                <button id="confirm-remove-button"
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-semibold">Confirm</button>
+                <button id="cancel-remove-button"
+                    class="bg-gray-300 hover:bg-gray-400 text-black px-4 py-2 rounded-md font-semibold">Cancel</button>
             </div>
-
-            <button id="saveSettings" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transform transition-transform duration-200 hover:scale-105 active:scale-95">Save</button>
         </div>
     </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div
+            class="modal-content bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm space-y-6 border-4 border-indigo-300 text-black">
+            <h2 class="text-3xl font-semibold">Settings</h2>
+
+            <div class="space-y-4 w-full">
+                <label for="username" class="text-lg font-medium">Name:</label>
+                <input id="username" type="text" class="w-full p-3 border-2 rounded-lg" placeholder="Enter username">
+
+                <label for="bgColor" class="text-lg font-medium">Background Color:</label>
+                <input id="bgColor" type="color" value="#FFFFFF" class="w-full h-10 border-2 rounded-lg">
+
+                <label for="fontColor" class="text-lg font-medium">Font Color:</label>
+                <input id="fontColor" type="color" class="w-full h-10 border-2 rounded-lg">
+            </div>
+
+            <button id="saveSettings"
+                class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg shadow-md">Save</button>
+        </div>
+    </div>
+
 </body>
-</html>
 
+</html>

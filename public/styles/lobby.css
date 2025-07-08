@@ -1,11 +1,14 @@
 .player-frame {
     display: flex;
     flex-direction: column;
-    font-size: 1.2em; /* Increased font size */
-    justify-content: center; /* Centers content vertically */
+    font-size: 4vh; /* font scales with viewport height */
+    justify-content: center;
     align-items: center;
-    border: 1px solid black; /* Adds a small black border */
-    position: relative; /* Needed for positioning the remove button */
+    border: 1px solid black;
+    border-radius: 8px;
+    min-height: 100px;
+    padding: 10px;
+    position: relative;
 }
 
 .settings-button {
@@ -22,7 +25,7 @@
     background-color: transparent;
 }
 
-/* Add modal styles */
+
 .modal {
     display: none; /* Hidden by default */
     position: fixed; /* Ensure it covers the whole viewport */
@@ -53,9 +56,6 @@
     font-size: 1.1em;
     color: #000;
 }
-
-
-
 
 #dice-display {
     left: 80%;
