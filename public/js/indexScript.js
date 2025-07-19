@@ -110,10 +110,7 @@ if (joinLobbyBtn) {
                 "#FFFFFF",
                 "#000000"
             );
-            const result = await joinLobbyClientSide(
-                player, lobbyCode
-            );
-            console.log('Joined lobby with code:', lobbyCode);
+            await joinLobbyClientSide(player, lobbyCode);
             // Redirect to the lobby page, passing the lobby code
             window.location.href = `/lobby.html?lobbyId=${lobbyCode}`;
 

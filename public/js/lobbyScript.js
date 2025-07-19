@@ -1,5 +1,6 @@
 import { firebaseConfig } from './firebaseConfig.js';
 import { openSettingsModal } from './settingsModalScript.js';
+import { Player } from './models.js';
 import "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js";
 
 // Initialize Firebases
@@ -14,6 +15,56 @@ const playerCollectionName = "players"
 // Get lobby ID from URL or wherever it's stored
 const urlParams = new URLSearchParams(window.location.search);
 const lobbyId = urlParams.get('lobbyId'); // Assuming you pass lobbyId in the URL
+
+// Page state
+let currentPage = 0; // Start with the first page (index 0)
+const totalPages = 3; // Based on the 3 dots in the HTML
+
+function updatePageDots() {
+    const dots = document.querySelectorAll('#page-dots .dot');
+    dots.forEach((dot, index) => {
+        if (index === currentPage) {
+            dot.classList.add('filled');
+        } else {
+            dot.classList.remove('filled');
+        }
+    });
+}
+
+function changePage(direction) {
+    currentPage += direction;
+
+    // Wrap around if at the beginning or end
+    if (currentPage < 0) {
+        currentPage = totalPages - 1;
+    } else if (currentPage >= totalPages) {
+        currentPage = 0;
+    }
+
+    updatePageDots();
+    setupPlayerListener(lobbyId);
+}
+
+function setupPageControls() {
+    const prevButton = document.getElementById('prev-page');
+    const nextButton = document.getElementById('next-page');
+
+    if (prevButton) {
+        prevButton.addEventListener('click', () => {
+            changePage(-1);
+        });
+    }
+
+    if (nextButton) {
+        nextButton.addEventListener('click', () => {
+            changePage(1);
+        });
+    }
+
+    // Initialize dots
+    updatePageDots();
+}
+
 
 function showConfirmationModal(message, onConfirm) {
     const confirmationModal = document.getElementById('confirmation-modal');
@@ -112,67 +163,136 @@ function initializeLobbyUI(lobbyId) {
     // Get other necessary element references here
 }
 
+function isStackedLayout() {
+    return window.innerWidth < 768; // Tailwind's 'md' breakpoint
+}
+
+function populatePlayerGridInfect(playersData) {
+    const playerGrid = document.getElementById('player-grid');
+    playerGrid.innerHTML = ''; // Clear the current player grid
+
+    // Loop through playersData and create alternative elements
+    playersData.forEach((player) => {
+        const alternativePlayerElement = document.createElement('div');
+        alternativePlayerElement.classList.add('alternative-player-view'); // Add a class for styling
+
+        // Add different information or a different layout here
+        alternativePlayerElement.innerHTML = `
+            <h3>${player.name}</h3>
+            <p>Some other info: ${player.someOtherField}</p>
+            // Add more elements as needed
+        `;
+
+        playerGrid.appendChild(alternativePlayerElement);
+    });
+}
+
+function getPlayerFrameHeightFromSnapshot(snapshot, fixedButtons) {
+    const numPlayers = snapshot.size;
+    if (numPlayers > 0) {
+        const leftPanelHeight = document.getElementById('left-panel').offsetHeight;
+        const screenHeight = window.innerHeight;
+        const bottomControlsHeight = fixedButtons.offsetHeight;
+        let availableHeight = screenHeight - bottomControlsHeight - 32; // extra spacing buffer
+        if (isStackedLayout()) {
+            availableHeight = availableHeight - leftPanelHeight;
+        }
+        const gapPx = 16; // gap-4 in Tailwind is 1rem = 16px
+        const totalGap = (numPlayers > 1 ? (numPlayers - 1) * gapPx : 0);
+
+        const playerFrameHeight = (availableHeight - totalGap) / Math.ceil(numPlayers / 2);
+        return playerFrameHeight;
+    } else {
+        return 0;
+    }
+}
+
+function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame) {
+    // Add the "X" button
+    const removeButton = document.createElement('button');
+    const playerName = playerDocument.data().name;
+    removeButton.textContent = '✖️'
+    removeButton.classList.add('remove-player-button');
+    removeButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        showConfirmationModal(`Are you sure you want to remove ${playerName}?`, async () => {
+            const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
+            await playersSubcollectionRef.doc(playerDocument.id).delete();
+        });
+    });
+
+    const settingsButton = document.createElement('button');
+        settingsButton.textContent = '⚙️';
+        settingsButton.classList.add('settings-button');
+        settingsButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            openSettingsModal(playerDocument.id, playerName);
+        });
+    playerFrame.appendChild(removeButton);
+    playerFrame.appendChild(settingsButton);
+}
+
+function populatePlayerGridDefault(snapshot) {
+    const playerGrid = document.getElementById('player-grid');
+    playerGrid.innerHTML = ''; // Clear the current player grid
+    const fixedButtons =  document.getElementById('bottom-controls');
+    let playerFrameHeight = getPlayerFrameHeightFromSnapshot(snapshot, fixedButtons)
+
+    snapshot.forEach((playerDocument) => {
+        const playerData = playerDocument.data();
+        const playerName = playerData.name;
+        const playerLife = playerData.life;
+        const damageToApply = playerData.damageToApply;
+
+        const playerFrame = document.createElement('button'); // Change div to button
+        playerFrame.style.backgroundColor = playerData.backgroundColor;
+        playerFrame.style.color = playerData.fontColor;
+        playerFrame.classList.add('player-frame');
+        playerFrame.style.height = `${playerFrameHeight}px`;
+
+
+        const nameElement = document.createElement('div');
+        nameElement.textContent = `${playerName}`;
+            playerFrame.appendChild(nameElement);
+        const lifeElement = document.createElement('div');
+        if (damageToApply === 0) {
+            lifeElement.textContent = `Life: ${playerLife}`;
+        } else if (damageToApply > 0) {
+            lifeElement.textContent = `Life: ${playerLife} (+${damageToApply})`;
+        } else {
+            lifeElement.textContent = `Life: ${playerLife} (${damageToApply})`;
+        }
+        playerFrame.appendChild(lifeElement);
+
+        addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame)
+        playerGrid.appendChild(playerFrame);
+
+        playerFrame.addEventListener('click', async (event) => {
+            handlePlayerFrameClick(event, lobbyId, playerDocument);
+        });
+    });
+}
+
 function setupPlayerListener(lobbyId) {
     const playerGrid = document.getElementById('player-grid');
     const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
 
     playersSubcollectionRef.onSnapshot(async (snapshot) => {
         console.log("Players subcollection updated!");
-        playerGrid.innerHTML = ''; // Clear the current player grid
+        const playersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        snapshot.forEach((playerDocument) => {
-            const playerData = playerDocument.data();
-            const playerName = playerData.name;
-            const playerLife = playerData.life;
-            const damageToApply = playerData.damageToApply;
+        // Use currentPage to decide which view to show
+        if (currentPage === 0) {
+            populatePlayerGridDefault(snapshot);
+        } else if (currentPage === 1) {
+            populatePlayerGridInfect(snapshot);
+        } else {
+            // Handle other pages or default to a view
+            populatePlayerGridDefault(snapshot); // Default for page 2 and beyond for now
+        }
 
-            const playerFrame = document.createElement('button'); // Change div to button
-            playerFrame.style.backgroundColor = playerData.backgroundColor;
-            playerFrame.style.color = playerData.fontColor;
-            playerFrame.classList.add('player-frame');
-
-            const nameElement = document.createElement('div');
-            nameElement.textContent = `${playerName}`;
-            playerFrame.appendChild(nameElement);
-            const lifeElement = document.createElement('div');
-            if (damageToApply === 0) {
-                lifeElement.textContent = `Life: ${playerLife}`;
-            } else if (damageToApply > 0) {
-                lifeElement.textContent = `Life: ${playerLife} (+${damageToApply})`;
-            } else {
-                lifeElement.textContent = `Life: ${playerLife} (${damageToApply})`;
-            }
-            playerFrame.appendChild(lifeElement);
-
-            // Add the "X" button
-            const removeButton = document.createElement('button');
-            removeButton.textContent = '✖️'
-            removeButton.classList.add('remove-player-button');
-            removeButton.addEventListener('click', (event) => {
-                event.stopPropagation();
-                showConfirmationModal(`Are you sure you want to remove ${playerName}?`, async () => {
-                    await playersSubcollectionRef.doc(playerDocument.id).delete();
-                });
-            });
-
-            // add settings button top right
-            const settingsButton = document.createElement('button');
-            settingsButton.textContent = '⚙️';
-            settingsButton.classList.add('settings-button');
-            settingsButton.addEventListener('click', (event) => {
-                event.stopPropagation();
-                openSettingsModal(playerDocument.id, playerName);
-            });
-
-            playerFrame.prepend(removeButton);
-            playerFrame.prepend(settingsButton);
-            playerGrid.appendChild(playerFrame);
-
-             // Add event listener to the player frame for life updates
-            playerFrame.addEventListener('click', async (event) => {
-                handlePlayerFrameClick(event, lobbyId, playerDocument);
-            });
-        });
+        // We don't call updatePageDots here because it's called by changePage
+        // when the user clicks the arrows.
     });
 }
 
@@ -239,18 +359,20 @@ function setupAbortButton(lobbyId) {
 function setupAddDummyPlayerButton(lobbyId) {
     const dummyButton = document.getElementById('add-dummy-player-button');
     const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
-    const randomNames = ["Alice", "Bob", "Charlie", "David", "Eve", "Frank"];
+    const randomNames = ["Alice", "Bob", "Charlie", "David", "Eve", "Frank", "Grace", "Hank", "Ivy", "Jack"];
 
     if (dummyButton) {
         dummyButton.addEventListener('click', async () => {
-            console.log("test")
-            await playersSubcollectionRef.add({
-                name: randomNames[Math.floor(Math.random() * randomNames.length)],
-                life: Math.floor(Math.random() * 100),
-                damageToApply: 0,
-                backgroundColor: "#FFFFFF",
-                fontColor: "#000000",
-            });
+            const player = new Player(
+                0,
+                randomNames[Math.floor(Math.random() * randomNames.length)],
+                Math.floor(Math.random() * 40),
+                0,
+                0,
+                "#FFFFFF",
+                "#000000"
+            );
+            await playersSubcollectionRef.add(player.toFirestoreObject());
         });
     }
 }
@@ -259,6 +381,7 @@ function setupAddDummyPlayerButton(lobbyId) {
 // --- Initialize Lobby ---
 if (lobbyId) {
     initializeLobbyUI(lobbyId);
+    setupPageControls(); // Setup page controls
     setupPlayerListener(lobbyId);
     setupExitLobbyButton(); // Call the new function
     setupSettingsButton(); // Call the new function

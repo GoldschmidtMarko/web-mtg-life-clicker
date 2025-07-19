@@ -14,14 +14,16 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
 
+    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./styles/lobby.css">
+
     <!-- Custom JS -->
     <script src="js/lobbyScript.js" type="module"></script>
     <script src="js/settingsModalScript.js" type="module"></script>
     <script src="js/diceAnimation.js" type="module"></script>
 
     <!-- Styles -->
-    <link rel="stylesheet" href="./style.css">
-    <link rel="stylesheet" href="./styles/lobby.css">
+
 </head>
 
 <body class="bg-gradient-to-br from-purple-600 to-indigo-800 text-white min-h-screen">
@@ -32,57 +34,62 @@
         <div class="flex flex-col md:flex-row md:gap-x-4 w-full">
 
             <!-- Left Panel -->
-            <aside class="left-section flex flex-col w-full md:w-1/6 space-y-4">
+            <aside id="left-panel" class="left-section flex flex-col items-center w-full md:w-1/6 space-y-4r">
 
                 <div id="lobby-info" class="space-y-2">
                     <div id="lobby-number" class="text-xl font-bold">1234</div>
-                    <button id="exit-lobby-button"
-                        class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-md font-semibold">Exit Lobby</button>
+                    <button id="exit-lobby-button" class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-md font-semibold">Exit Lobby</button>
+                    <button id="settings-button" class="py-3 px-3 p-2 bg-gray-700 hover:bg-gray-600 rounded-md">
+                        <i class="fas fa-cogs"></i>
+                    </button>
                 </div>
-
-                <button id="settings-button" class="self-start w-auto p-2 bg-gray-700 hover:bg-gray-600 rounded-md">
-                    <i class="fas fa-cogs"></i>
-                </button>
 
                 <!-- Settings Dropdown -->
                 <div id="settings-frame" class="folding-frame hidden p-4 bg-gray-800 rounded-md shadow-lg space-y-2">
                     <div class="flex gap-2 items-center">
                         <button id="reset-life-button"
-                            class="flex-1 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md font-semibold">Reset
+                            class="flex-1 bg-blue-600 hover:bg-blue-700 px-2 py-2 rounded-md font-semibold">Reset
                             Life</button>
                         <input id="reset-life-input" type="number" value="40"
-                            class="w-20 p-1 rounded border-2 text-gray-700" />
+                            class="w-14 p-1 rounded border-2 text-gray-700"/>
                     </div>
                     <div class="flex gap-2 items-center">
                         <button id="dice"
-                            class="flex-1 bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded-md font-semibold">Dice</button>
+                            class="flex-1 bg-yellow-600 hover:bg-yellow-700 px-2 py-2 rounded-md font-semibold">Dice</button>
                         <input id="dice-eyes" type="number" value="20"
-                            class="w-20 p-1 rounded border-2 text-gray-700" />
+                            class="w-14 p-1 rounded border-2 text-gray-700" />
                     </div>
-                    <button class="w-full bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md font-semibold">Feature
-                        2</button>
-                    <button class="w-full bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md font-semibold">Feature
-                        3</button>
+                    <button class="w-full bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md font-semibold">New Feature</button>
+                    <button class="w-full bg-red-600 hover:bg-red-700 px-4 py-2 rounded-md font-semibold">New Feature</button>
                 </div>
 
             </aside>
 
             <!-- Right Panel -->
-            <div class="flex flex-col h-screen w-full md:w-3/4 p-4">
+            <div class="flex flex-col w-full md:w-3/4 p-4 flex-1">
 
                 <!-- Scrollable Player Grid -->
-                <div id="player-grid" class="grid grid-cols-2 md:grid-cols-2 gap-4 overflow-y-auto flex-grow">
+                <div id="player-grid" class="grid grid-cols-2 gap-4 grow overflow-y-auto">
                     <!-- Players added dynamically -->
                 </div>
 
                 <!-- Fixed Buttons at Bottom -->
-                <div class="flex flex-col items-center mt-4 space-y-4 shrink-0 pb-6">
-                    <button id="add-dummy-player-button"
-                        class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-md font-semibold">Add Dummy
-                        Player</button>
+                <div id="bottom-controls" class="flex flex-col items-center mt-4 space-y-4 shrink-0 pb-6">
+                    <!-- Control current visible page -->
+                    <div class="flex items-center justify-center space-x-4">
+                        <button id="prev-page" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-md font-semibold text-white text-2xl"><i class="fas fa-arrow-left"></i></button>
+                        <div id="page-dots" class="flex space-x-2">
+                            <span class="dot filled"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </div>
+                        <button id="next-page" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-md font-semibold text-white text-2xl"><i class="fas fa-arrow-right"></i></button>
+                    </div>
                     <div class="flex gap-4">
                         <button id="abort-button"
                             class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-md font-semibold">Abort</button>
+                        <button id="add-dummy-player-button"
+                            class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-md font-semibold">Add Player</button>
                         <button id="apply-button"
                             class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-md font-semibold">Apply</button>
                     </div>

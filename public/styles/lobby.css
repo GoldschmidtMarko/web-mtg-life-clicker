@@ -5,8 +5,7 @@
     justify-content: center;
     align-items: center;
     border: 1px solid black;
-    border-radius: 8px;
-    min-height: 100px;
+    height: 100%;
     padding: 10px;
     position: relative;
 }
@@ -75,4 +74,19 @@
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
     z-index: 1000;
     display: none; /* Initially hidden */
+}
+
+.dot {
+    height: 20px; /* Increased size */
+    width: 20px; /* Increased size */
+    background-color: transparent; /* Made transparent */
+    border: 2px solid #FFFFFF; /* Added white border */
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0 3px; /* Added some spacing */
+}
+
+.dot.filled {
+    background-color: #3B82F6; /* Changed to blue */
+    border: 2px solid #FFFFFF; /* Added white border */
 }

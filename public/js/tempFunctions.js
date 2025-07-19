@@ -1,6 +1,6 @@
 import { firebaseConfig } from './firebaseConfig.js';
 import "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js";
-import { Player, Lobby } from './models.js';
+import { Lobby } from './models.js';
 
 // Initialize Firebase
 const app = firebase.initializeApp(firebaseConfig);
@@ -60,6 +60,5 @@ export async function joinLobbyClientSide(player, lobbyCode) {
   }
   const db = firebase.firestore(); // Use client-side firestore
   const lobbyRef = db.collection('lobbies').doc(lobbyCode);
-  console.log(player)
   lobbyRef.collection('players').doc(player.id).set(player.toFirestoreObject());
 }
