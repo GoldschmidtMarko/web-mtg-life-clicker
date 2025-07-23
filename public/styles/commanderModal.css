@@ -1,0 +1,15 @@
+
+.commander-modal-player-name {
+  text-align: center;
+  border: 1px solid black;
+  width: 100%;
+  margin-bottom: 10px; /* Add space below each player name/damage */
+  font-size: 4vh;
+}
+
+#commanderDamageList .commander-modal-button {
+  width: 100%;
+  font-size: 4vh;
+  border: 1px solid black;
+  /* Removed temporary blue border */
+}

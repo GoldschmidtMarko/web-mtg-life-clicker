@@ -78,6 +78,7 @@ if (createLobbyBtn) {
             40,
             0,
             0,
+            0,
             "#FFFFFF",
             "#000000"
         )
@@ -105,6 +106,7 @@ if (joinLobbyBtn) {
                 currentUser.uid,
                 playerName,
                 40,
+                0,
                 0,
                 0,
                 "#FFFFFF",

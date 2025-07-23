@@ -2,7 +2,7 @@
 
 // Define a class for the Player
 class Player {
-  constructor(id, name, life, damageToApply, infect, backgroundColor, fontColor) { // Add damageToApply and infect here
+  constructor(id, name, life, damageToApply, infect, infectToApply, backgroundColor, fontColor) { // Add damageToApply and infect here
     this.id = id; // Player's unique ID (e.g., Firebase Auth UID).
     this.name = name; // Player's display name.
     this.life = life; // Player's life total.
@@ -10,6 +10,8 @@ class Player {
     this.infect = infect; // Player's infect status
     this.backgroundColor = backgroundColor;
     this.fontColor = fontColor;
+    this.infectToApply = infectToApply;
+    this.commanderDamages = [];
     // Add other player-related attributes here as needed
   }
 
@@ -20,8 +22,27 @@ class Player {
       life: this.life,
       damageToApply: this.damageToApply,
       infect: this.infect,
+      infectToApply: this.infectToApply,
       backgroundColor: this.backgroundColor,
-      fontColor: this.fontColor
+      fontColor: this.fontColor,
+      commanderDamages: this.commanderDamages.map(damage => damage.toFirestoreObject())
+    };
+  }
+}
+
+class CommanderDamage{
+  constructor(playerName, commanderName, damage, damageToApply){
+    this.playerName = playerName;
+    this.commanderName = commanderName;
+    this.damage = damage;
+    this.damageToApply = damageToApply;
+  }
+  toFirestoreObject() {
+    return {
+      playerName: this.playerName,
+      commanderName: this.commanderName,
+      damage: this.damage,
+      damageToApply: this.damageToApply
     };
   }
 }
@@ -78,4 +99,4 @@ class Lobby {
 }
 
 // If you are using JavaScript modules, you might export these classes:
-export { Player, Lobby };
+export { Player, Lobby, CommanderDamage };
