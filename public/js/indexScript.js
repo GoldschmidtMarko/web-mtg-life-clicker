@@ -1,6 +1,6 @@
-import { firebaseConfig } from './firebaseConfig.js'; // Keep this import
+import { firebaseConfig } from './util/firebaseConfig.js'; // Keep this import
 import { createLobbyClientSide, joinLobbyClientSide } from './tempFunctions.js';
-import { Player } from './models.js';
+import { Player } from './util/models.js';
 
 // Initialize Firebase
 const app = firebase.initializeApp(firebaseConfig);
