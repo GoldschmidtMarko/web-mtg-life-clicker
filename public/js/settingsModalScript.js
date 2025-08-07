@@ -1,17 +1,11 @@
-import { firebaseConfig } from './firebaseConfig.js';
 import "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js";
-
-// Initialize Firebase
-// Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth(); // Although not strictly needed for this debug, keep for context
-const functions = firebase.functions(); // Although not strictly needed for this debug, keep for context
-
+import {
+    updatePlayerSettings
+} from './tempFunctions.js';
 
 // Get references to the modal and the settings button
 const settingsModal = document.getElementById('settingsModal');
 const modalContent = settingsModal.querySelector('.modal-content');
-const db = firebase.firestore(); // Get Firestore instance
 
 // Variable to store the current user ID
 let currentUserId = null;
@@ -49,7 +43,7 @@ window.addEventListener('keydown', (event) => {
 // Event listener for the save button
 const saveSettingsButton = document.getElementById('saveSettings');
 if (saveSettingsButton) {
-    saveSettingsButton.addEventListener('click', () => {
+    saveSettingsButton.addEventListener('click', async () => {
         const newUsername = document.getElementById('username').value; // Get the new username
         const backgroundColor = document.getElementById('bgColor').value;
         const fontColor = document.getElementById('fontColor').value;
@@ -64,13 +58,16 @@ if (saveSettingsButton) {
             const lobbyId = urlParams.get('lobbyId');
 
             if (lobbyId) {
-                db.collection('lobbies').doc(lobbyId).collection('players').doc(currentUserId).update({
-                    name: newUsername,
-                    backgroundColor: backgroundColor,
-                    fontColor: fontColor,
-                    // You can add updates for background and font color here later if you store them per player
-                })
-                .catch(error => console.error("Error updating username:", error));
+                try {
+                    await updatePlayerSettings(lobbyId, currentUserId, {
+                        name: newUsername,
+                        backgroundColor: backgroundColor,
+                        fontColor: fontColor,
+                    });
+                } catch (error) {
+                    console.error("Error updating username:", error);
+                }
+
             } else { console.error("Lobby ID not found. Cannot save settings."); }
         } else { console.warn("No user ID available. Cannot save settings."); }
 

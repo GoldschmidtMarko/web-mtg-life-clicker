@@ -1,10 +1,12 @@
 import { getPlayerFrameHeightFromSnapshot } from "./util/playerFrameHeightFromSnapshot.js"
-import { firebaseConfig } from './firebaseConfig.js';
-import { CommanderDamage } from './models.js';
-
-// Initialize Firebase (only if not already initialized in lobbyScript.js)
-// const app = firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore(); 
+import { firebaseConfig } from './util/firebaseConfig.js';
+import { CommanderDamage } from './util/models.js';
+import {
+    updateCommanderDamage,
+    getPlayer,
+    updateLobbyTimestamp,
+    getServerTimestamp
+} from './tempFunctions.js';
 
 
 function getCommanderDamageFromName(commanderDamageList, playerName) {
@@ -79,51 +81,42 @@ async function onClickCommanderDamageName(lobbyId, event, playerDocumentId, othe
     const playerFrame = event.currentTarget; // Get the button element that was clicked
     const buttonWidth = playerFrame.offsetWidth;
     const clickX = event.clientX - playerFrame.getBoundingClientRect().left;
-    const playerDocRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName).doc(playerDocumentId);
 
     try {
-        await db.runTransaction(async (transaction) => {
-            const playerDocument = await transaction.get(playerDocRef);
-            if (!playerDocument.exists) {
-                throw "Document does not exist!";
-            }
+        const playerDocument = await getPlayer(lobbyId, playerDocumentId);
+        const playerData = playerDocument.data();
+        let commanderDamages = playerData.commanderDamages || [];
+        const playerName = playerData.name;
 
-            const playerData = playerDocument.data();
-            let commanderDamages = playerData.commanderDamages || [];
-            const playerName = playerData.name;
+        let commanderDamage = getCommanderDamageFromName(commanderDamages, otherPlayerName);
 
-            let commanderDamage = getCommanderDamageFromName(commanderDamages, otherPlayerName);
-            if (clickX < buttonWidth / 2) {
-                if (commanderDamage) {
-                    commanderDamage.damageToApply -= 1;
-                } else {
-                    commanderDamage = new CommanderDamage(playerName, otherPlayerName, 0, -1);
-                    commanderDamages.push(commanderDamage.toFirestoreObject());
-                }
+        if (clickX < buttonWidth / 2) {
+            if (commanderDamage) {
+                commanderDamage.damageToApply -= 1;
             } else {
-                if (commanderDamage) {
-                    commanderDamage.damageToApply += 1;
-                } else {
-                    commanderDamage = new CommanderDamage(playerName, otherPlayerName, 0, 1);
-                    commanderDamages.push(commanderDamage.toFirestoreObject());
-                }
+                commanderDamage = new CommanderDamage(playerName, otherPlayerName, 0, -1);
+                commanderDamages.push(commanderDamage.toFirestoreObject());
             }
+        } else {
+            if (commanderDamage) {
+                commanderDamage.damageToApply += 1;
+            } else {
+                commanderDamage = new CommanderDamage(playerName, otherPlayerName, 0, 1);
+                commanderDamages.push(commanderDamage.toFirestoreObject());
+            }
+        }
 
-            transaction.update(playerDocRef, {
-                commanderDamages: commanderDamages
-            });
-        });
+        await updateCommanderDamage(lobbyId, playerDocumentId, commanderDamages);
 
         // After successful transaction, re-render the modal with the updated data
-        const updatedPlayerDocument = await playerDocRef.get();
+        const updatedPlayerDocument = await getPlayer(lobbyId, playerDocumentId);
         openCommanderModal(lobbyId, updatedPlayerDocument, snapshot);
 
         // Update lobby last updated timestamp (optional)
-        const lobbyDocRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId)
-        await lobbyDocRef.update({ lastUpdated: firebase.firestore.FieldValue.serverTimestamp() });
+        await updateLobbyTimestamp(lobbyId);
 
     } catch (error) {
-        console.error(`Error updating player attribute for ${playerDocumentId}:`, error);;
+        console.error(`Error updating player attribute for ${playerDocumentId}:`, error);
     }
 }
 

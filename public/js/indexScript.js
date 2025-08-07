@@ -1,16 +1,8 @@
-import { firebaseConfig } from './firebaseConfig.js'; // Keep this import
-import { createLobbyClientSide, joinLobbyClientSide } from './tempFunctions.js';
-import { Player } from './models.js';
-
-// Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
+import { Player } from './util/models.js';
 const functions = firebase.functions();
 
-// Connect to the Functions emulator if running locally
-if (location.hostname === "localhost" || location.hostname === "5000-firebase-web-mtg-life-clicker-1750604024651.cluster-axf5tvtfjjfekvhwxwkkkzsk2y.cloudworkstations.dev") {
-    functions.useEmulator("5001-firebase-web-mtg-life-clicker-1750604024651.cluster-axf5tvtfjjfekvhwxwkkkzsk2y.cloudworkstations.dev"); // Using external hostname and port 443
-}
+const createLobby = functions.httpsCallable('createLobby'); // Access httpsCallable through the functions object
+const joinLobby = functions.httpsCallable('joinLobby'); // Access httpsCallable through the functions object
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -27,7 +19,7 @@ const joinLobbyUserName = document.getElementById('remote-player-name-input');
 let currentUser = null;
 
 // Listen for authentication state changes *inside* this listener
-auth.onAuthStateChanged((user) => {
+firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         currentUser = user;
         console.log("User signed in:", currentUser.uid);
@@ -63,11 +55,6 @@ function signIn() {
         });
 }
 
-// Get callable functions (can be defined inside or outside DOMContentLoaded)
-// TODO const createLobbyCallable = functions.httpsCallable('createLobby');
-// TODO const joinLobbyCallable = functions.httpsCallable('joinLobby');
-
-
 // Event listener for Create New Lobby button *inside* this listener
 if (createLobbyBtn) {
     createLobbyBtn.addEventListener('click', async () => {
@@ -83,7 +70,7 @@ if (createLobbyBtn) {
             "#000000"
         )
         try {
-            const result = await createLobbyClientSide(playerClass);
+            const result = await createLobby(playerClass);
             const lobbyCode = result.lobbyCode;
             console.log('Lobby created with code:', lobbyCode);
             // Redirect to the lobby page, passing the lobby code
@@ -112,7 +99,7 @@ if (joinLobbyBtn) {
                 "#FFFFFF",
                 "#000000"
             );
-            await joinLobbyClientSide(player, lobbyCode);
+            await joinLobby(player, lobbyCode);
             // Redirect to the lobby page, passing the lobby code
             window.location.href = `/lobby.html?lobbyId=${lobbyCode}`;
 
@@ -121,7 +108,7 @@ if (joinLobbyBtn) {
             alert('Failed to join lobby. Please try again.');
         }
     });
-}
+} 
 
 // Event listener for the Sign In button *inside* this listener
 if (signInButton) {

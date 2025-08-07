@@ -1,18 +1,18 @@
-import { firebaseConfig } from './firebaseConfig.js';
 import { openSettingsModal } from './settingsModalScript.js';
-import { Player } from './models.js';
+import { Player } from './util/models.js';
 import { openCommanderModal } from "./commanderModalScript.js"
 import { getPlayerFrameHeightFromSnapshot } from "./util/playerFrameHeightFromSnapshot.js"
 import "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js";
+import { getFunctions, httpsCallable } from "firebase/functions";
 
-// Initialize Firebases
-// Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth(); // Although not strictly needed for this debug, keep for context
-const functions = firebase.functions(); // Although not strictly needed for this debug, keep for context
+const functions = getFunctions();
+// const createLobby = httpsCallable(functions, 'createLobby');
 
-const lobbyCollectionName = "lobbies"
-const playerCollectionName = "players"
+const getPlayers = httpsCallable(functions, 'getPlayers');
+const updatePlayer = httpsCallable(functions, 'updatePlayer');
+const deletePlayer = httpsCallable(functions, 'deletePlayer');
+const applyCombatDamage = httpsCallable(functions, 'applyCombatDamage');
+
 
 // Get lobby ID from URL or wherever it's stored
 const urlParams = new URLSearchParams(window.location.search);
@@ -21,6 +21,7 @@ const lobbyId = urlParams.get('lobbyId'); // Assuming you pass lobbyId in the UR
 // Page state
 let currentPage = 0; // Start with the first page (index 0)
 const totalPages = 3; // Based on the 3 dots in the HTML
+let playerSnapshot = null;
 
 function updatePageDots() {
     const dots = document.querySelectorAll('#page-dots .dot');
@@ -33,6 +34,18 @@ function updatePageDots() {
     });
 }
 
+function listenToPlayers(lobbyId, callback) {
+    authenticate_user()
+    return firebase.firestore()
+      .collection('lobbies')
+      .doc(lobbyId)
+      .collection('players')
+      .onSnapshot(snapshot => {
+        readCount += snapshot.docs.length;
+        callback(snapshot);
+      });
+  }
+
 function changePage(direction) {
     currentPage += direction;
 
@@ -44,7 +57,7 @@ function changePage(direction) {
     }
 
     updatePageDots();
-    setupPlayerListener(lobbyId);
+    renderCurrentPage(); // Use stored snapshot instead of re-listening
 }
 
 function setupPageControls() {
@@ -112,6 +125,9 @@ function initializeLobbyUI(lobbyId) {
 }
 
 function populatePlayerGridCommander(snapshot) {
+    const pageLabel = document.getElementById('page-label');
+    pageLabel.textContent = "Commander";
+
     const playerGrid = document.getElementById('player-grid');
     playerGrid.innerHTML = ''; // Clear the current player grid
     const fixedButtons =  document.getElementById('bottom-controls');
@@ -150,6 +166,8 @@ function populatePlayerGridCommander(snapshot) {
             }
         }
 
+        addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame)
+
         playerFrame.addEventListener('click', async () => {
             openCommanderModal(lobbyId, playerDocument, snapshot);
         });
@@ -161,6 +179,9 @@ function populatePlayerGridCommander(snapshot) {
 
 
 function populatePlayerGridInfect(snapshot) {
+    const pageLabel = document.getElementById('page-label');
+    pageLabel.textContent = "Infect";
+
     const playerGrid = document.getElementById('player-grid');
     playerGrid.innerHTML = ''; // Clear the current player grid
     const fixedButtons =  document.getElementById('bottom-controls');
@@ -209,8 +230,7 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame) {
     removeButton.addEventListener('click', (event) => {
         event.stopPropagation();
         showConfirmationModal(`Are you sure you want to remove ${playerName}?`, async () => {
-            const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
-            await playersSubcollectionRef.doc(playerDocument.id).delete();
+            await deletePlayer(lobbyId, playerDocument.id);
         });
     });
 
@@ -226,6 +246,9 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame) {
 }
 
 function populatePlayerGridDefault(snapshot) {
+    const pageLabel = document.getElementById('page-label');
+    pageLabel.textContent = "Life";
+
     const playerGrid = document.getElementById('player-grid');
     playerGrid.innerHTML = ''; // Clear the current player grid
     const fixedButtons =  document.getElementById('bottom-controls');
@@ -267,18 +290,23 @@ function populatePlayerGridDefault(snapshot) {
 }
 
 function setupPlayerListener(lobbyId) {
-    const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
-
-    playersSubcollectionRef.onSnapshot(async (snapshot) => {
+    listenToPlayers(lobbyId, (snapshot) => {
         console.log("Players subcollection updated!");
-        if (currentPage === 0) {
-            populatePlayerGridDefault(snapshot);
-        } else if (currentPage === 1) {
-            populatePlayerGridInfect(snapshot);
-        } else {
-            populatePlayerGridCommander(snapshot);
-        }
+        console.log("Stats: ", getFirestoreUsageStats())
+        playerSnapshot = snapshot; // Save the snapshot globally
+        renderCurrentPage(); // Render the current page using the snapshot
     });
+}
+
+function renderCurrentPage() {
+    if (!playerSnapshot) return; // Wait until snapshot is available
+    if (currentPage === 0) {
+        populatePlayerGridDefault(playerSnapshot);
+    } else if (currentPage === 1) {
+        populatePlayerGridInfect(playerSnapshot);
+    } else {
+        populatePlayerGridCommander(playerSnapshot);
+    }
 }
 
 // Function to handle player frame clicks and update life
@@ -286,40 +314,40 @@ async function handlePlayerFrameClick(event, lobbyId, playerDocument, attributeK
     const playerFrame = event.currentTarget; // Get the button element that was clicked
     const buttonWidth = playerFrame.offsetWidth;
     const clickX = event.clientX - playerFrame.getBoundingClientRect().left;
-    const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
 
      try {
-        const currentValue = (await playersSubcollectionRef.doc(playerDocument.id).get()).data()[attributeKey];
+        const currentPlayer = playerSnapshot?.docs.find(doc => doc.id === playerDocument.id);
+        if (!currentPlayer) return;
+        const currentValue = currentPlayer.data()[attributeKey];
+
         if (clickX < buttonWidth / 2) {
-            await playersSubcollectionRef.doc(playerDocument.id).update({ [attributeKey]: currentValue - 1 });
+            await updatePlayer(lobbyId, playerDocument.id, { [attributeKey]: currentValue - 1 });
         } else {
-            await playersSubcollectionRef.doc(playerDocument.id).update({ [attributeKey]: currentValue + 1 });
+            await updatePlayer(lobbyId, playerDocument.id, { [attributeKey]: currentValue + 1 });
         }
 
             // Update lobby last updated timestamp (optional)
-        const lobbyDocRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId)
-        await lobbyDocRef.update({ lastUpdated: firebase.firestore.FieldValue.serverTimestamp() });
+        await updateLobbyTimestamp(lobbyId);
      } catch (error) {
          console.error(`Error updating player attribute for ${playerDocument.id}:`, error);;
      }
 }
 
+function addClickHandler(id, handler) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', handler);
+}
+
 // Function for the Apply button handler
 function setupApplyButton(lobbyId) {
     const applyButton = document.getElementById('apply-button');
-    const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
-
     if (applyButton) {
         applyButton.addEventListener('click', async () => {
-            const players = await playersSubcollectionRef.get();
-            players.forEach(async (playerDocument) => {
-                await playersSubcollectionRef.doc(playerDocument.id).update({
-                    life: firebase.firestore.FieldValue.increment(playerDocument.data().damageToApply),
-                    infect: firebase.firestore.FieldValue.increment(playerDocument.data().infectToApply),
-                    damageToApply: 0,
-                    infectToApply: 0
-                });
+            const playersSnapshot = await getPlayers(lobbyId);
+            playersSnapshot.forEach(async (playerDocument) => {
+                await applyCombatDamage(lobbyId, playerDocument.id); // Call the new function
             });
+            await updateLobbyTimestamp(lobbyId); // Update lobby timestamp after applying damage to all players
         });
     }
 }
@@ -327,13 +355,12 @@ function setupApplyButton(lobbyId) {
 // Function for the Abort button handler
 function setupAbortButton(lobbyId) {
     const abortButton = document.getElementById('abort-button');
-    const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
 
     if (abortButton) {
         abortButton.addEventListener('click', async () => {
-            const players = await playersSubcollectionRef.get();
+            const players = await getPlayers(lobbyId);
             players.forEach(async (playerDocument) => {
-                await playersSubcollectionRef.doc(playerDocument.id).update({ damageToApply: 0, infectToApply: 0 });
+                await updatePlayer(lobbyId, playerDocument.id, { damageToApply: 0, infectToApply: 0 });
             });
         });
     }
@@ -342,7 +369,6 @@ function setupAbortButton(lobbyId) {
 // Function for the Add Dummy Player button handler
 function setupAddDummyPlayerButton(lobbyId) {
     const dummyButton = document.getElementById('add-dummy-player-button');
-    const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName);
     const randomNames = ["Alice", "Bob", "Charlie", "David", "Eve", "Frank", "Grace", "Hank", "Ivy", "Jack"];
 
     if (dummyButton) {
@@ -357,7 +383,7 @@ function setupAddDummyPlayerButton(lobbyId) {
                 "#FFFFFF",
                 "#000000",
             );
-            await playersSubcollectionRef.add(player.toFirestoreObject());
+            await addPlayer(lobbyId, player);
         });
     }
 }
@@ -366,27 +392,24 @@ function setupAddDummyPlayerButton(lobbyId) {
 // --- Initialize Lobby ---
 if (lobbyId) {
     initializeLobbyUI(lobbyId);
-    setupPageControls(); // Setup page controls
+    initializeControls(lobbyId);
     setupPlayerListener(lobbyId);
-    setupExitLobbyButton(); // Call the new function
-    setupSettingsButton(); // Call the new function
-    setupResetLifeButton(lobbyId); // Call the new function and pass lobbyId
+} else {
+    console.error("Lobby ID not found!");
+}
+
+function initializeControls(lobbyId) {
+    setupPageControls();
+    setupExitLobbyButton();
+    setupSettingsButton();
+    setupResetLifeButton(lobbyId);
     setupApplyButton(lobbyId);
     setupAbortButton(lobbyId);
     setupAddDummyPlayerButton(lobbyId);
-} else {
-    console.error("Lobby ID not found!");
-    // Optionally redirect the user or display an error message
 }
 
 function setupExitLobbyButton() {
-    const exitButton = document.getElementById('exit-lobby-button');
-    if (exitButton) {
-        exitButton.addEventListener('click', () => {
-            // go back to index.html
-            window.location.href = '../index.html';
-        });
-    }
+    addClickHandler('exit-lobby-button', () => window.location.href = '../index.html');
 }
 
 // Function for the Settings button handler
@@ -404,7 +427,6 @@ function setupSettingsButton() {
 function setupResetLifeButton(lobbyId) {
     const resetLifeButton = document.getElementById('reset-life-button');
     const resetLifeInput = document.getElementById('reset-life-input');
-    const playersSubcollectionRef = firebase.firestore().collection(lobbyCollectionName).doc(lobbyId).collection(playerCollectionName); // Use the modular Firestore API
 
     if (resetLifeButton && resetLifeInput) {
         resetLifeButton.addEventListener('click', async () => {
@@ -416,13 +438,14 @@ function setupResetLifeButton(lobbyId) {
                 return; // Stop if the input is not a number
             }
 
-            const players = await playersSubcollectionRef.get(); // Use getDocs for a one-time fetch
+            const players = await getPlayers(lobbyId);
             players.forEach(async (playerDocument) => {
-                await  playersSubcollectionRef.doc(playerDocument.id).update({
+                await updatePlayer(lobbyId, playerDocument.id, {
                     life: lifeToSet,
                     damageToApply: 0,
                     infect: 0,
-                    infectToApply: 0
+                    infectToApply: 0,
+                    commanderDamages: []
                 });
             });
         });
