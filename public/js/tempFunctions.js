@@ -2,10 +2,10 @@ import { firebaseConfig } from './util/firebaseConfig.js';
 import "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js";
 import { Lobby } from './util/models.js';
 
-// Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const functions = firebase.functions();
+// Don't initialize Firebase here - it should be initialized elsewhere
+// const app = firebase.initializeApp(firebaseConfig);
+// const auth = firebase.auth();
+// const functions = firebase.functions();
 
 let readCount = 0;
 let writeCount = 0;

@@ -1,8 +1,25 @@
 import { Player } from './util/models.js';
-const functions = firebase.functions();
+import { firebaseConfig } from './util/firebaseConfig.js';
 
-const createLobby = functions.httpsCallable('createLobby'); // Access httpsCallable through the functions object
-const joinLobby = functions.httpsCallable('joinLobby'); // Access httpsCallable through the functions object
+// Initialize Firebase (only once per app)
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
+// Initialize Firebase Auth and Functions
+const auth = firebase.auth();
+const functions = firebase.app().functions('europe-west4');
+
+// Connect to emulators when running locally
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    console.log('Connecting to Firebase emulators...');
+    functions.useEmulator('localhost', 5001);
+    auth.useEmulator('http://localhost:9099');
+}
+
+// Initialize Firebase Functions
+const createLobby = functions.httpsCallable('createLobby');
+const joinLobby = functions.httpsCallable('joinLobby');
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,7 +31,6 @@ const userIdDisplay = document.getElementById('user-id-display');
 const userIdValue = document.getElementById('user-id-value');
 const signInButton = document.getElementById('sign-in-button');
 const joinLobbyUserName = document.getElementById('remote-player-name-input');
-
 
 let currentUser = null;
 
@@ -71,7 +87,7 @@ if (createLobbyBtn) {
         )
         try {
             const result = await createLobby(playerClass);
-            const lobbyCode = result.lobbyCode;
+            const lobbyCode = result.data.lobbyCode;
             console.log('Lobby created with code:', lobbyCode);
             // Redirect to the lobby page, passing the lobby code
             window.location.href = `/lobby.html?lobbyId=${lobbyCode}`;

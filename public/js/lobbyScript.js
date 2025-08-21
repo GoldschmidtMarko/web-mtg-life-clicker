@@ -2,16 +2,21 @@ import { openSettingsModal } from './settingsModalScript.js';
 import { Player } from './util/models.js';
 import { openCommanderModal } from "./commanderModalScript.js"
 import { getPlayerFrameHeightFromSnapshot } from "./util/playerFrameHeightFromSnapshot.js"
-import "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { firebaseConfig } from './util/firebaseConfig.js';
 
-const functions = getFunctions();
-// const createLobby = httpsCallable(functions, 'createLobby');
+// Initialize Firebase (only once per app)
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
-const getPlayers = httpsCallable(functions, 'getPlayers');
-const updatePlayer = httpsCallable(functions, 'updatePlayer');
-const deletePlayer = httpsCallable(functions, 'deletePlayer');
-const applyCombatDamage = httpsCallable(functions, 'applyCombatDamage');
+// Initialize Firebase Auth and Functions
+const auth = firebase.auth();
+const functions = firebase.app().functions('europe-west4');
+
+const getPlayers = functions.httpsCallable('getPlayers');
+const updatePlayer = functions.httpsCallable('updatePlayer');
+const deletePlayer = functions.httpsCallable('deletePlayer');
+const applyCombatDamage = functions.httpsCallable('applyCombatDamage');
 
 
 // Get lobby ID from URL or wherever it's stored
@@ -35,7 +40,6 @@ function updatePageDots() {
 }
 
 function listenToPlayers(lobbyId, callback) {
-    authenticate_user()
     return firebase.firestore()
       .collection('lobbies')
       .doc(lobbyId)
