@@ -6,15 +6,16 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Initialize Firebase Auth and Functions
+// Initialize Firebase Auth, Functions, and Firestore
 const auth = firebase.auth();
 const functions = firebase.app().functions('europe-west4');
+const firestore = firebase.firestore();
 
 // Connect to emulators when running locally
 if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-    console.log('Connecting to Firebase emulators...');
     functions.useEmulator('localhost', 5001);
     auth.useEmulator('http://localhost:9099');
+    firestore.useEmulator('localhost', 8080);
 }
 
 // Initialize Firebase Functions
@@ -38,7 +39,6 @@ let currentUser = null;
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         currentUser = user;
-        console.log("User signed in:", currentUser.uid);
 
         if (userIdValue) userIdValue.textContent = currentUser.uid;
         if (userIdDisplay) userIdDisplay.classList.remove('hidden');
@@ -48,7 +48,6 @@ firebase.auth().onAuthStateChanged((user) => {
         if (signInButton) signInButton.style.display = 'none';
     } else {
         currentUser = null;
-        console.log("User signed out");
 
         if (userIdDisplay) userIdDisplay.classList.add('hidden');
 
@@ -63,7 +62,7 @@ function signIn() {
     const provider = new firebase.auth.GoogleAuthProvider();
     auth.signInWithPopup(provider)
         .then((result) => {
-            console.log("Signed in user:", result.user.uid);
+            // User signed in successfully
         })
         .catch((error) => {
             console.error("Sign in error:", error);
@@ -86,14 +85,11 @@ if (createLobbyBtn) {
             "#000000"
         )
         try {
-            const result = await createLobby(playerClass);
+            const result = await createLobby({ hostPlayer: playerClass.toFirestoreObject() });
             const lobbyCode = result.data.lobbyCode;
-            console.log('Lobby created with code:', lobbyCode);
-            // Redirect to the lobby page, passing the lobby code
-            window.location.href = `/lobby.html?lobbyId=${lobbyCode}`;
+            window.location.href = 'public/lobby.html?lobbyId=' + lobbyCode;
         } catch (error) {
             console.error('Error creating lobby:', error);
-            alert('Failed to create lobby. Please try again.');
         }
     });
 }

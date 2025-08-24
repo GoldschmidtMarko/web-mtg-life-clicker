@@ -1,7 +1,21 @@
 import "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js";
-import {
-    updatePlayerSettings
-} from './tempFunctions.js';
+import { firebaseConfig } from './util/firebaseConfig.js';
+
+// Initialize Firebase (only once per app)
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
+// Initialize Firebase Functions
+const functions = firebase.app().functions('europe-west4');
+
+// Connect to emulators when running locally
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    functions.useEmulator('localhost', 5001);
+}
+
+// Firebase callable function
+const updatePlayerSettings = functions.httpsCallable('updatePlayerSettings');
 
 // Get references to the modal and the settings button
 const settingsModal = document.getElementById('settingsModal');
@@ -49,7 +63,6 @@ if (saveSettingsButton) {
         const fontColor = document.getElementById('fontColor').value;
 
         // Use currentUserId to update the user's settings in Firestore
-        // console.log("Attempting to save settings for user:", currentUserId, { newUsername, backgroundColor, fontColor });
 
         if (currentUserId) {
             // Assuming you have a way to get the current lobby ID
@@ -59,13 +72,17 @@ if (saveSettingsButton) {
 
             if (lobbyId) {
                 try {
-                    await updatePlayerSettings(lobbyId, currentUserId, {
-                        name: newUsername,
-                        backgroundColor: backgroundColor,
-                        fontColor: fontColor,
+                    await updatePlayerSettings({
+                        lobbyId: lobbyId,
+                        playerId: currentUserId,
+                        settings: {
+                            name: newUsername,
+                            backgroundColor: backgroundColor,
+                            fontColor: fontColor,
+                        }
                     });
                 } catch (error) {
-                    console.error("Error updating username:", error);
+                    console.error("Error updating player settings:", error);
                 }
 
             } else { console.error("Lobby ID not found. Cannot save settings."); }

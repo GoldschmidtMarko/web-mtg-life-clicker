@@ -1,12 +1,40 @@
 import { getPlayerFrameHeightFromSnapshot } from "./util/playerFrameHeightFromSnapshot.js"
-import { firebaseConfig } from './util/firebaseConfig.js';
 import { CommanderDamage } from './util/models.js';
-import {
-    updateCommanderDamage,
-    getPlayer,
-    updateLobbyTimestamp,
-    getServerTimestamp
-} from './tempFunctions.js';
+import { firebaseConfig } from './util/firebaseConfig.js';
+
+// Initialize Firebase (only once per app)
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
+// Initialize Firebase Functions and Firestore
+const functions = firebase.app().functions('europe-west4');
+const firestore = firebase.firestore();
+
+// Connect to emulators when running locally
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    functions.useEmulator('localhost', 5001);
+    firestore.useEmulator('localhost', 8080);
+}
+
+// Firebase callable functions
+const updatePlayer = functions.httpsCallable('updatePlayer');
+const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
+
+// Helper function to get a player document
+async function getPlayer(lobbyId, playerId) {
+    const playerRef = firestore.collection('lobbies').doc(lobbyId).collection('players').doc(playerId);
+    return await playerRef.get();
+}
+
+// Helper function to update commander damage
+async function updateCommanderDamage(lobbyId, playerId, commanderDamages) {
+    await updatePlayer({ 
+        lobbyId, 
+        playerId, 
+        updates: { commanderDamages } 
+    });
+}
 
 
 function getCommanderDamageFromName(commanderDamageList, playerName) {
@@ -113,7 +141,7 @@ async function onClickCommanderDamageName(lobbyId, event, playerDocumentId, othe
         openCommanderModal(lobbyId, updatedPlayerDocument, snapshot);
 
         // Update lobby last updated timestamp (optional)
-        await updateLobbyTimestamp(lobbyId);
+        await updateLobbyTimestamp({ lobbyId });
 
     } catch (error) {
         console.error(`Error updating player attribute for ${playerDocumentId}:`, error);

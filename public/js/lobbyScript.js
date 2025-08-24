@@ -9,14 +9,24 @@ if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Initialize Firebase Auth and Functions
+// Initialize Firebase Auth, Functions, and Firestore
 const auth = firebase.auth();
 const functions = firebase.app().functions('europe-west4');
+const firestore = firebase.firestore();
+
+// Connect to emulators when running locally
+if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    functions.useEmulator('localhost', 5001);
+    auth.useEmulator('http://localhost:9099');
+    firestore.useEmulator('localhost', 8080);
+}
 
 const getPlayers = functions.httpsCallable('getPlayers');
 const updatePlayer = functions.httpsCallable('updatePlayer');
 const deletePlayer = functions.httpsCallable('deletePlayer');
 const applyCombatDamage = functions.httpsCallable('applyCombatDamage');
+const addPlayer = functions.httpsCallable('addPlayer');
+const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
 
 
 // Get lobby ID from URL or wherever it's stored
@@ -45,7 +55,6 @@ function listenToPlayers(lobbyId, callback) {
       .doc(lobbyId)
       .collection('players')
       .onSnapshot(snapshot => {
-        readCount += snapshot.docs.length;
         callback(snapshot);
       });
   }
@@ -234,7 +243,7 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame) {
     removeButton.addEventListener('click', (event) => {
         event.stopPropagation();
         showConfirmationModal(`Are you sure you want to remove ${playerName}?`, async () => {
-            await deletePlayer(lobbyId, playerDocument.id);
+            await deletePlayer({ lobbyId, playerId: playerDocument.id });
         });
     });
 
@@ -295,8 +304,6 @@ function populatePlayerGridDefault(snapshot) {
 
 function setupPlayerListener(lobbyId) {
     listenToPlayers(lobbyId, (snapshot) => {
-        console.log("Players subcollection updated!");
-        console.log("Stats: ", getFirestoreUsageStats())
         playerSnapshot = snapshot; // Save the snapshot globally
         renderCurrentPage(); // Render the current page using the snapshot
     });
@@ -325,13 +332,13 @@ async function handlePlayerFrameClick(event, lobbyId, playerDocument, attributeK
         const currentValue = currentPlayer.data()[attributeKey];
 
         if (clickX < buttonWidth / 2) {
-            await updatePlayer(lobbyId, playerDocument.id, { [attributeKey]: currentValue - 1 });
+            await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { [attributeKey]: currentValue - 1 } });
         } else {
-            await updatePlayer(lobbyId, playerDocument.id, { [attributeKey]: currentValue + 1 });
+            await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { [attributeKey]: currentValue + 1 } });
         }
 
             // Update lobby last updated timestamp (optional)
-        await updateLobbyTimestamp(lobbyId);
+        await updateLobbyTimestamp({ lobbyId });
      } catch (error) {
          console.error(`Error updating player attribute for ${playerDocument.id}:`, error);;
      }
@@ -347,11 +354,38 @@ function setupApplyButton(lobbyId) {
     const applyButton = document.getElementById('apply-button');
     if (applyButton) {
         applyButton.addEventListener('click', async () => {
-            const playersSnapshot = await getPlayers(lobbyId);
-            playersSnapshot.forEach(async (playerDocument) => {
-                await applyCombatDamage(lobbyId, playerDocument.id); // Call the new function
-            });
-            await updateLobbyTimestamp(lobbyId); // Update lobby timestamp after applying damage to all players
+            try {
+                const playersResult = await getPlayers({ lobbyId });
+                
+                // Firebase callable functions return result.data
+                const playersData = playersResult.data || playersResult;
+                
+                if (!playersData || !playersData.players) {
+                    console.error('Invalid players result:', playersData);
+                    return;
+                }
+                
+                const playersSnapshot = playersData.players;
+                
+                for (const playerDocument of playersSnapshot) {
+                    try {
+                        
+                        if (!playerDocument.id) {
+                            console.error('Player document has no ID:', playerDocument);
+                            continue;
+                        }
+                        
+                        const result = await applyCombatDamage({ lobbyId, playerId: playerDocument.id });
+                    } catch (playerError) {
+                        console.error(`Error processing player ${playerDocument.id}:`, playerError);
+                        console.error('Full error details:', playerError);
+                    }
+                }
+                
+                await updateLobbyTimestamp({ lobbyId }); // Update lobby timestamp after applying damage to all players
+            } catch (error) {
+                console.error('Error in apply button handler:', error);
+            }
         });
     }
 }
@@ -362,10 +396,24 @@ function setupAbortButton(lobbyId) {
 
     if (abortButton) {
         abortButton.addEventListener('click', async () => {
-            const players = await getPlayers(lobbyId);
-            players.forEach(async (playerDocument) => {
-                await updatePlayer(lobbyId, playerDocument.id, { damageToApply: 0, infectToApply: 0 });
-            });
+            try {
+                const playersResult = await getPlayers({ lobbyId });
+                
+                // Firebase callable functions return result.data
+                const playersData = playersResult.data || playersResult;
+                
+                if (!playersData || !playersData.players) {
+                    console.error('Invalid players result in abort:', playersData);
+                    return;
+                }
+                
+                const players = playersData.players;
+                players.forEach(async (playerDocument) => {
+                    await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { damageToApply: 0, infectToApply: 0 } });
+                });
+            } catch (error) {
+                console.error('Error in abort button handler:', error);
+            }
         });
     }
 }
@@ -377,17 +425,25 @@ function setupAddDummyPlayerButton(lobbyId) {
 
     if (dummyButton) {
         dummyButton.addEventListener('click', async () => {
+            // Generate a unique ID for the dummy player
+            const uniqueId = `dummy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
             const player = new Player(
-                0,
+                uniqueId,  // Use unique ID instead of hardcoded 0
                 randomNames[Math.floor(Math.random() * randomNames.length)],
-                Math.floor(Math.random() * 40),
+                Math.floor(Math.random() * 40) + 1, // Random life between 1-40
                 0,
                 0,
                 0,
                 "#FFFFFF",
                 "#000000",
             );
-            await addPlayer(lobbyId, player);
+            
+            try {
+                await addPlayer({ lobbyId, player: player.toFirestoreObject() });
+            } catch (error) {
+                console.error('Error adding dummy player:', error);
+            }
         });
     }
 }
@@ -442,16 +498,34 @@ function setupResetLifeButton(lobbyId) {
                 return; // Stop if the input is not a number
             }
 
-            const players = await getPlayers(lobbyId);
-            players.forEach(async (playerDocument) => {
-                await updatePlayer(lobbyId, playerDocument.id, {
-                    life: lifeToSet,
-                    damageToApply: 0,
-                    infect: 0,
-                    infectToApply: 0,
-                    commanderDamages: []
+            try {
+                const playersResult = await getPlayers({ lobbyId });
+                
+                // Firebase callable functions return result.data
+                const playersData = playersResult.data || playersResult;
+                
+                if (!playersData || !playersData.players) {
+                    console.error('Invalid players result in reset:', playersData);
+                    return;
+                }
+                
+                const players = playersData.players;
+                players.forEach(async (playerDocument) => {
+                await updatePlayer({ 
+                    lobbyId, 
+                    playerId: playerDocument.id, 
+                    updates: {
+                        life: lifeToSet,
+                        damageToApply: 0,
+                        infect: 0,
+                        infectToApply: 0,
+                        commanderDamages: []
+                    }
                 });
             });
+            } catch (error) {
+                console.error('Error in reset life button handler:', error);
+            }
         });
     }
 }
