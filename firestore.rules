@@ -23,6 +23,37 @@ service cloud.firestore {
              request.resource.data.name.size() > 0 &&
              request.resource.data.name.size() <= 50;
     }
+    
+    function validateRootPlayerData() {
+      return request.resource.data.keys().hasAll(['name', 'email', 'uid']) &&
+             request.resource.data.name is string &&
+             request.resource.data.name.size() > 0 &&
+             request.resource.data.name.size() <= 100 &&
+             request.resource.data.email is string &&
+             request.resource.data.uid is string &&
+             request.resource.data.uid == request.auth.uid;
+    }
+
+    // Rules for the root 'players' collection (user profiles)
+    match /players/{playerId} {
+      // Users can read their own player profile
+      allow read: if isAuthenticated() && 
+                     request.auth.uid == playerId;
+      
+      // Users can create their own player profile
+      allow create: if isAuthenticated() && 
+                       request.auth.uid == playerId &&
+                       validateRootPlayerData();
+      
+      // Users can update their own player profile
+      allow update: if isAuthenticated() && 
+                       request.auth.uid == playerId &&
+                       validateRootPlayerData();
+                       
+      // Users can delete their own player profile
+      allow delete: if isAuthenticated() && 
+                       request.auth.uid == playerId;
+    }
 
     // Rules for the 'lobbies' collection
     match /lobbies/{lobbyId} {

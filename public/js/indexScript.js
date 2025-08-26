@@ -21,6 +21,7 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
 // Initialize Firebase Functions
 const createLobby = functions.httpsCallable('createLobby');
 const joinLobby = functions.httpsCallable('joinLobby');
+const savePlayerData = functions.httpsCallable('savePlayerData');
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -31,14 +32,29 @@ const joinLobbyBtn = document.getElementById('join-lobby-btn');
 const userIdDisplay = document.getElementById('user-id-display');
 const userIdValue = document.getElementById('user-id-value');
 const signInButton = document.getElementById('sign-in-button');
+const logoutButton = document.getElementById('logout-button');
 const joinLobbyUserName = document.getElementById('remote-player-name-input');
 
 let currentUser = null;
 
+// Function to save or update player data via backend function
+async function callSavePlayerData(user) {
+    try {
+        const result = await savePlayerData();
+    } catch (error) {
+        console.error('Error saving player data:', error);
+        // Don't show user-facing error for this background operation
+        // The app will still function normally
+    }
+}
+
 // Listen for authentication state changes *inside* this listener
-firebase.auth().onAuthStateChanged((user) => {
+firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
+
+        // Save player data to Firestore via backend function
+        await callSavePlayerData(user);
 
         if (userIdValue) userIdValue.textContent = currentUser.uid;
         if (userIdDisplay) userIdDisplay.classList.remove('hidden');
@@ -47,6 +63,7 @@ firebase.auth().onAuthStateChanged((user) => {
         if (createLobbyBtn) createLobbyBtn.disabled = false;
         if (joinLobbyBtn) joinLobbyBtn.disabled = false;
         if (signInButton) signInButton.style.display = 'none';
+        if (logoutButton) logoutButton.classList.remove('hidden');
     } else {
         currentUser = null;
 
@@ -56,6 +73,7 @@ firebase.auth().onAuthStateChanged((user) => {
         if (createLobbyBtn) createLobbyBtn.disabled = false;
         if (joinLobbyBtn) joinLobbyBtn.disabled = false;
         if (signInButton) signInButton.style.display = 'block';
+        if (logoutButton) logoutButton.classList.add('hidden');
     }
 });
 
@@ -132,6 +150,28 @@ function signIn() {
         });
 }
 
+// Function to sign out
+function signOut() {
+    // Clear any pending Firestore operations before signing out
+    try {
+        auth.signOut()
+            .then(() => {
+                console.log("User signed out successfully");
+                // Force reload to clear any cached connections
+                window.location.reload();
+            })
+            .catch((error) => {
+                console.error("Sign out error:", error);
+                // Still reload even if there's an error
+                window.location.reload();
+            });
+    } catch (error) {
+        console.error("Sign out error:", error);
+        // Force reload as fallback
+        window.location.reload();
+    }
+}
+
 // Function to show sign-in warning popup
 function showSignInWarning() {
     alert("⚠️ Please sign in with Google first to create or join a lobby!");
@@ -205,6 +245,11 @@ if (joinLobbyBtn) {
 // Event listener for the Sign In button *inside* this listener
 if (signInButton) {
     signInButton.addEventListener('click', signIn);
+}
+
+// Event listener for the Logout button *inside* this listener
+if (logoutButton) {
+    logoutButton.addEventListener('click', signOut);
 }
 
 // Initial state: buttons are enabled but will show warning if not authenticated

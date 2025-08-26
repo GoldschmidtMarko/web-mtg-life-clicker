@@ -171,6 +171,36 @@ function authenticateUser(auth) {
   }
 }
 
+// Save or update player data when user signs in
+exports.savePlayerData = onCall({
+  cors: true,
+  timeoutSeconds: 10
+}, async (req) => {
+  authenticateUser(req.auth);
+  const userId = req.auth.uid;
+  
+  // Get user info from Firebase Auth token
+  const userRecord = req.auth;
+  
+  const playerData = {
+    name: userRecord.token.name || 'Unknown',
+    email: userRecord.token.email || '',
+    lastLogin: FieldValue.serverTimestamp(),
+    uid: userId
+  };
+
+  try {
+    // Use set with merge option to create or update the document
+    await db.collection('players').doc(userId).set(playerData, { merge: true });
+    trackWrite("savePlayerData - player data save");
+    
+    return { success: true, message: 'Player data saved successfully' };
+  } catch (error) {
+    console.error('Error saving player data:', error);
+    throw new HttpsError('internal', 'Failed to save player data. Please try again.');
+  }
+});
+
 // Create a lobby, given player data (callable function)
 exports.createLobby = onCall({
   cors: true,
