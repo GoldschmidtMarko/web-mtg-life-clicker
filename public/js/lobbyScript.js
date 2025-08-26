@@ -28,6 +28,39 @@ const applyCombatDamage = functions.httpsCallable('applyCombatDamage');
 const addPlayer = functions.httpsCallable('addPlayer');
 const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
 
+// Function to show spam/error warnings
+function showSpamWarning(message = 'Please slow down! Too many requests.') {
+    let warning = document.getElementById('spam-warning');
+    if (!warning) {
+        warning = document.createElement('div');
+        warning.id = 'spam-warning';
+        warning.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff4444;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            max-width: 300px;
+        `;
+        document.body.appendChild(warning);
+    }
+    
+    warning.textContent = message;
+    warning.style.display = 'block';
+
+    // Hide warning after 4 seconds
+    setTimeout(() => {
+        if (warning) {
+            warning.style.display = 'none';
+        }
+    }, 4000);
+}
+
 
 // Get lobby ID from URL or wherever it's stored
 const urlParams = new URLSearchParams(window.location.search);
@@ -340,7 +373,14 @@ async function handlePlayerFrameClick(event, lobbyId, playerDocument, attributeK
             // Update lobby last updated timestamp (optional)
         await updateLobbyTimestamp({ lobbyId });
      } catch (error) {
-         console.error(`Error updating player attribute for ${playerDocument.id}:`, error);;
+         console.error(`Error updating player attribute for ${playerDocument.id}:`, error);
+         
+         // Show user-friendly error message
+         if (error.code === 'functions/resource-exhausted') {
+             showSpamWarning(error.message || 'Rate limit exceeded. Please slow down.');
+         } else {
+             console.error('Update failed:', error.message);
+         }
      }
 }
 
@@ -421,7 +461,7 @@ function setupAbortButton(lobbyId) {
 // Function for the Add Dummy Player button handler
 function setupAddDummyPlayerButton(lobbyId) {
     const dummyButton = document.getElementById('add-dummy-player-button');
-    const randomNames = ["Alice", "Bob", "Charlie", "David", "Eve", "Frank", "Grace", "Hank", "Ivy", "Jack"];
+    const randomNames = ["Alice", "Bob", "Charlie", "David", "Eve", "Frank", "Grace", "Hank", "Ivy", "Jack", "Liam", "Mia", "Noah", "Olivia", "Sophia"];
 
     if (dummyButton) {
         dummyButton.addEventListener('click', async () => {
@@ -431,7 +471,7 @@ function setupAddDummyPlayerButton(lobbyId) {
             const player = new Player(
                 uniqueId,  // Use unique ID instead of hardcoded 0
                 randomNames[Math.floor(Math.random() * randomNames.length)],
-                Math.floor(Math.random() * 40) + 1, // Random life between 1-40
+                40, // Random life between 1-40
                 0,
                 0,
                 0,
@@ -469,7 +509,7 @@ function initializeControls(lobbyId) {
 }
 
 function setupExitLobbyButton() {
-    addClickHandler('exit-lobby-button', () => window.location.href = '../index.html');
+    addClickHandler('exit-lobby-button', () => window.location.href = 'index.html');
 }
 
 // Function for the Settings button handler

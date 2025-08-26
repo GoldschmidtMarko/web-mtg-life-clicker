@@ -43,6 +43,7 @@ firebase.auth().onAuthStateChanged((user) => {
         if (userIdValue) userIdValue.textContent = currentUser.uid;
         if (userIdDisplay) userIdDisplay.classList.remove('hidden');
 
+        // Enable buttons and hide sign-in button when authenticated
         if (createLobbyBtn) createLobbyBtn.disabled = false;
         if (joinLobbyBtn) joinLobbyBtn.disabled = false;
         if (signInButton) signInButton.style.display = 'none';
@@ -51,11 +52,72 @@ firebase.auth().onAuthStateChanged((user) => {
 
         if (userIdDisplay) userIdDisplay.classList.add('hidden');
 
-        if (createLobbyBtn) createLobbyBtn.disabled = true;
-        if (joinLobbyBtn) joinLobbyBtn.disabled = true;
+        // Keep buttons enabled but they will show warning popup
+        if (createLobbyBtn) createLobbyBtn.disabled = false;
+        if (joinLobbyBtn) joinLobbyBtn.disabled = false;
         if (signInButton) signInButton.style.display = 'block';
     }
 });
+
+// Function to display user-friendly error messages
+function showErrorMessage(error) {
+    let message = 'An unexpected error occurred. Please try again.';
+    
+    if (error.code) {
+        // Firebase callable function error
+        switch (error.code) {
+            case 'functions/resource-exhausted':
+                message = error.message || 'Rate limit exceeded. Please slow down.';
+                break;
+            case 'functions/invalid-argument':
+                message = error.message || 'Invalid input provided.';
+                break;
+            case 'functions/unauthenticated':
+                message = 'Please sign in to continue.';
+                break;
+            case 'functions/internal':
+                message = 'Server error. Please try again later.';
+                break;
+            default:
+                message = error.message || message;
+        }
+    } else if (error.message) {
+        message = error.message;
+    }
+    
+    // Create or update error display
+    let errorDiv = document.getElementById('error-message');
+    if (!errorDiv) {
+        errorDiv = document.createElement('div');
+        errorDiv.id = 'error-message';
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff4444;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            max-width: 80%;
+            text-align: center;
+        `;
+        document.body.appendChild(errorDiv);
+    }
+    
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    
+    // Hide error after 5 seconds
+    setTimeout(() => {
+        if (errorDiv) {
+            errorDiv.style.display = 'none';
+        }
+    }, 5000);
+}
 
 // Function to sign in with Google (can be defined inside or outside DOMContentLoaded)
 function signIn() {
@@ -70,9 +132,20 @@ function signIn() {
         });
 }
 
+// Function to show sign-in warning popup
+function showSignInWarning() {
+    alert("⚠️ Please sign in with Google first to create or join a lobby!");
+}
+
 // Event listener for Create New Lobby button *inside* this listener
 if (createLobbyBtn) {
     createLobbyBtn.addEventListener('click', async () => {
+        // Check if user is signed in
+        if (!currentUser) {
+            showSignInWarning();
+            return;
+        }
+        
         const playerName = currentUser.displayName.split(" ")[0] || "Player"
         const playerClass = new Player(
             currentUser.uid,
@@ -85,11 +158,12 @@ if (createLobbyBtn) {
             "#000000"
         )
         try {
-            const result = await createLobby({ hostPlayer: playerClass.toFirestoreObject() });
+            const result = await createLobby(playerClass.toFirestoreObject());
             const lobbyCode = result.data.lobbyCode;
-            window.location.href = 'public/lobby.html?lobbyId=' + lobbyCode;
+            window.location.href = 'lobby.html?lobbyId=' + lobbyCode;
         } catch (error) {
             console.error('Error creating lobby:', error);
+            showErrorMessage(error);
         }
     });
 }
@@ -98,6 +172,12 @@ if (createLobbyBtn) {
 // Event listener for Join Lobby button *inside* this listener
 if (joinLobbyBtn) {
     joinLobbyBtn.addEventListener('click', async () => {
+        // Check if user is signed in
+        if (!currentUser) {
+            showSignInWarning();
+            return;
+        }
+        
         const playerName = joinLobbyUserName.value || "Player"
         const lobbyCode = lobbyCodeInput.value;
         try {
@@ -111,13 +191,13 @@ if (joinLobbyBtn) {
                 "#FFFFFF",
                 "#000000"
             );
-            await joinLobby(player, lobbyCode);
+            await joinLobby({player: player.toFirestoreObject(), lobbyCode});
             // Redirect to the lobby page, passing the lobby code
             window.location.href = `/lobby.html?lobbyId=${lobbyCode}`;
 
         } catch (error) {
             console.error('Error joining lobby:', error);
-            alert('Failed to join lobby. Please try again.');
+            showErrorMessage(error);
         }
     });
 } 
@@ -127,8 +207,8 @@ if (signInButton) {
     signInButton.addEventListener('click', signIn);
 }
 
-// Initial state: disable buttons until user is authenticated *inside* this listener
-if (createLobbyBtn) createLobbyBtn.disabled = true;
-if (joinLobbyBtn) joinLobbyBtn.disabled = true;
+// Initial state: buttons are enabled but will show warning if not authenticated
+if (createLobbyBtn) createLobbyBtn.disabled = false;
+if (joinLobbyBtn) joinLobbyBtn.disabled = false;
 
 });

@@ -1,29 +1,69 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(ownerId) {
+      return isAuthenticated() && request.auth.uid == ownerId;
+    }
+    
+    function validateLobbyData() {
+      return request.resource.data.keys().hasAll(['code', 'ownerId', 'ownerName']) &&
+             request.resource.data.code is string &&
+             request.resource.data.code.size() >= 4 &&
+             request.resource.data.code.size() <= 10;
+    }
+    
+    function validatePlayerData() {
+      return request.resource.data.keys().hasAll(['name']) &&
+             request.resource.data.name is string &&
+             request.resource.data.name.size() > 0 &&
+             request.resource.data.name.size() <= 50;
+    }
+
     // Rules for the 'lobbies' collection
     match /lobbies/{lobbyId} {
       // Allow any authenticated user to read lobby documents
-      allow read: if request.auth != null;
-      // Allow any authenticated user to create lobby documents
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      allow read: if isAuthenticated();
+      
+      // Allow creating lobbies with proper validation
+      allow create: if isAuthenticated() && 
+                       validateLobbyData() &&
+                       request.auth.uid == request.resource.data.ownerId;
+      
+      // Only lobby owner can update lobby
+      allow update: if isAuthenticated() && 
+                       isOwner(resource.data.ownerId);
+                       
+      // Only lobby owner can delete lobby
+      allow delete: if isAuthenticated() && 
+                       isOwner(resource.data.ownerId);
     }
 
     // Rules for the 'players' subcollection within 'lobbies'
     match /lobbies/{lobbyId}/players/{playerId} {
       // Allow any authenticated user to read any player document
-      allow read: if request.auth != null;
-      // Allow any authenticated user to update any player document
-      allow update: if request.auth != null;
-      // Allow any authenticated user to create a player document
-      allow create: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow read: if isAuthenticated();
+      
+      // Allow creating player with validation
+      allow create: if isAuthenticated() && 
+                       validatePlayerData();
+      
+      // Allow updating player with validation  
+      allow update: if isAuthenticated() && 
+                       validatePlayerData();
+                       
+      // Allow deleting player
+      allow delete: if isAuthenticated();
     }
 
-    // Add rules for other collections if you have them
-    // match /otherCollection/{document=**} {
-    //   allow read, write: if <your_conditions>;
-    // }
+    // Rate limiting collection (optional - for Firestore-based rate limiting)
+    match /rateLimits/{userId} {
+      allow read, write: if isAuthenticated() && 
+                            request.auth.uid == userId;
+    }
   }
 }

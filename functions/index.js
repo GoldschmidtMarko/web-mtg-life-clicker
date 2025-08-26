@@ -8,7 +8,7 @@ setGlobalOptions({
 
 initializeApp();  // <- This must be called BEFORE getFirestore()
 
-const {onCall} = require("firebase-functions/v2/https");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 
 // Configure Firestore to use emulator when running locally
@@ -32,10 +32,142 @@ function trackWrite(operation) {
   return writeCount;
 }
 
+// Rate limiting storage (in production, use Redis or Firestore)
+const rateLimitStore = new Map();
+
+// Rate limiting function
+function checkRateLimit(userId, action, maxRequests = 10, windowMs = 60000) {
+  const key = `${userId}:${action}`;
+  const now = Date.now();
+  
+  if (!rateLimitStore.has(key)) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  
+  const userData = rateLimitStore.get(key);
+  
+  // Reset if window has passed
+  if (now > userData.resetTime) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  
+  // Check if under limit
+  if (userData.count < maxRequests) {
+    userData.count++;
+    return true;
+  }
+  
+  return false; // Rate limit exceeded
+}
+
+// Clean up old entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of rateLimitStore.entries()) {
+    if (now > value.resetTime) {
+      rateLimitStore.delete(key);
+    }
+  }
+}, 60000); // Clean every minute
+
+// Advanced debouncing using Firestore for persistence
+async function checkFirestoreRateLimit(userId, action, maxRequests = 10, windowMs = 60000) {
+  const rateLimitRef = db.collection('rateLimits').doc(`${userId}_${action}`);
+  const now = Date.now();
+  
+  try {
+    const result = await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(rateLimitRef);
+      
+      if (!doc.exists) {
+        // First request - create document
+        transaction.set(rateLimitRef, {
+          count: 1,
+          resetTime: now + windowMs,
+          lastRequest: now
+        });
+        return true;
+      }
+      
+      const data = doc.data();
+      
+      // Reset if window has passed
+      if (now > data.resetTime) {
+        transaction.update(rateLimitRef, {
+          count: 1,
+          resetTime: now + windowMs,
+          lastRequest: now
+        });
+        return true;
+      }
+      
+      // Check if under limit
+      if (data.count < maxRequests) {
+        transaction.update(rateLimitRef, {
+          count: data.count + 1,
+          lastRequest: now
+        });
+        return true;
+      }
+      
+      return false; // Rate limit exceeded
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Firestore rate limit check failed:', error);
+    // Fall back to memory-based rate limiting
+    return checkRateLimit(userId, action, maxRequests, windowMs);
+  }
+}
+
+// Debouncing for frequent updates - only allow if enough time has passed
+async function shouldDebounceUpdate(userId, playerId, field, minIntervalMs = 100) {
+  const debounceKey = `debounce_${userId}_${playerId}_${field}`;
+  const rateLimitRef = db.collection('rateLimits').doc(debounceKey);
+  const now = Date.now();
+  
+  try {
+    const result = await db.runTransaction(async (transaction) => {
+      const doc = await transaction.get(rateLimitRef);
+      
+      if (!doc.exists) {
+        // First update - allow it
+        transaction.set(rateLimitRef, {
+          lastUpdate: now,
+          expiresAt: now + (24 * 60 * 60 * 1000) // 24 hours TTL
+        });
+        return false; // Don't debounce
+      }
+      
+      const data = doc.data();
+      const timeSinceLastUpdate = now - data.lastUpdate;
+      
+      if (timeSinceLastUpdate >= minIntervalMs) {
+        // Enough time has passed - allow update
+        transaction.update(rateLimitRef, {
+          lastUpdate: now,
+          expiresAt: now + (24 * 60 * 60 * 1000)
+        });
+        return false; // Don't debounce
+      }
+      
+      return true; // Should debounce (too soon)
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Debounce check failed:', error);
+    return false; // Default to allowing the update
+  }
+}
+
 // Helper to check auth in callable functions
 function authenticateUser(auth) {
   if (!auth) {
-    throw new Error("Unauthenticated. User must be signed in.");
+    throw new HttpsError('unauthenticated', 'User must be signed in.');
   }
 }
 
@@ -48,6 +180,11 @@ exports.createLobby = onCall({
   authenticateUser(req.auth);
   const userId = req.auth.uid;
   const playerName = player.name || "Player";
+
+  // Rate limiting: max 3 lobbies per 5 minutes per user
+  if (!checkRateLimit(userId, 'createLobby', 3, 300000)) {
+    throw new HttpsError('resource-exhausted', 'Rate limit exceeded. You can only create 3 lobbies per 5 minutes.');
+  }
 
   // Generate simple lobby code
   const lobbyCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -73,7 +210,7 @@ exports.createLobby = onCall({
     return {lobbyCode};
   } catch (err) {
     console.error("Error creating lobby:", err);
-    throw new Error("Failed to create lobby");
+    throw new HttpsError('internal', 'Failed to create lobby. Please try again.');
   }
 });
 
@@ -83,12 +220,48 @@ exports.joinLobby = onCall({
 }, async (req) => {
   const {player, lobbyCode} = req.data;
   authenticateUser(req.auth);
+  const userId = req.auth.uid;
 
-  const lobbyRef = db.collection("lobbies").doc(lobbyCode);
-  await lobbyRef.collection("players").doc(player.id).set(player);
-  trackWrite("joinLobby - player addition");
+  // Validate required parameters
+  if (!lobbyCode || typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
+    throw new HttpsError('invalid-argument', 'Missing or invalid lobby code');
+  }
+  if (!player || typeof player !== 'object') {
+    throw new HttpsError('invalid-argument', 'Missing or invalid player data');
+  }
 
-  return {success: true};
+  // Validate that the player has an ID (should be the user's UID)
+  const playerId = player.id || userId;
+  if (!playerId || typeof playerId !== 'string') {
+    throw new HttpsError('invalid-argument', 'Invalid player ID');
+  }
+
+  try {
+    // Check if lobby exists
+    const lobbyRef = db.collection("lobbies").doc(lobbyCode);
+    const lobbyDoc = await lobbyRef.get();
+    
+    if (!lobbyDoc.exists) {
+      throw new HttpsError('not-found', 'Lobby not found. Please check the lobby code.');
+    }
+
+    // Add player to the lobby
+    const playerData = {...player, id: playerId}; // Ensure ID is set
+    await lobbyRef.collection("players").doc(playerId).set(playerData);
+    trackWrite("joinLobby - player addition");
+
+    return {success: true, lobbyCode};
+  } catch (error) {
+    console.error("Error joining lobby:", error);
+    
+    // Re-throw HttpsError instances
+    if (error.code && error.code.startsWith('functions/')) {
+      throw error;
+    }
+    
+    // Wrap other errors
+    throw new HttpsError('internal', 'Failed to join lobby. Please try again.');
+  }
 });
 
 // Get all players in a lobby
@@ -119,16 +292,49 @@ exports.updatePlayer = onCall({
 }, async (req) => {
   const {lobbyId, playerId, updates} = req.data;
   authenticateUser(req.auth);
+  const userId = req.auth.uid;
+
+  // Use Firestore-based rate limiting for persistent tracking
+  if (!(await checkFirestoreRateLimit(userId, 'updatePlayer', 50, 60000))) {
+    throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Please slow down your requests.');
+  }
+
+  // Additional rate limiting per player being updated to prevent targeting
+  const playerUpdateKey = `updatePlayer_${playerId}`;
+  if (!(await checkFirestoreRateLimit(userId, playerUpdateKey, 30, 60000))) {
+    throw new HttpsError('resource-exhausted', 'Rate limit exceeded for this player. Please slow down.');
+  }
 
   // Validate required parameters
   if (!lobbyId || typeof lobbyId !== 'string' || lobbyId.trim() === '') {
-    throw new Error("Missing or invalid lobbyId parameter");
+    throw new HttpsError('invalid-argument', 'Missing or invalid lobbyId parameter');
   }
   if (!playerId || typeof playerId !== 'string' || playerId.trim() === '') {
-    throw new Error("Missing or invalid playerId parameter");
+    throw new HttpsError('invalid-argument', 'Missing or invalid playerId parameter');
   }
   if (!updates || typeof updates !== 'object') {
-    throw new Error("Missing or invalid updates parameter");
+    throw new HttpsError('invalid-argument', 'Missing or invalid updates parameter');
+  }
+
+  // Validate update values to prevent abuse
+  for (const [key, value] of Object.entries(updates)) {
+    if (typeof value === 'number' && Math.abs(value) > 10000) {
+      throw new HttpsError('invalid-argument', `Update value too large for field ${key}. Maximum allowed: ±10000`);
+    }
+    if (typeof value === 'string' && value.length > 500) {
+      throw new HttpsError('invalid-argument', `String value too long for field ${key}. Maximum 500 characters.`);
+    }
+  }
+
+  // Check for debouncing on frequently updated fields
+  const frequentFields = ['damageToApply', 'infectToApply', 'life'];
+  for (const field of Object.keys(updates)) {
+    if (frequentFields.includes(field)) {
+      const shouldDebounce = await shouldDebounceUpdate(userId, playerId, field, 50); // 50ms minimum interval
+      if (shouldDebounce) {
+        throw new HttpsError('resource-exhausted', `Update too frequent for field ${field}. Please slow down.`);
+      }
+    }
   }
 
   const playerRef = db.collection("lobbies")
@@ -160,6 +366,17 @@ exports.incrementPlayerField = onCall({
 }, async (req) => {
   const {lobbyId, playerId, field, value} = req.data;
   authenticateUser(req.auth);
+  const userId = req.auth.uid;
+
+  // Rate limiting: max 30 increments per minute per user
+  if (!checkRateLimit(userId, 'incrementPlayerField', 30, 60000)) {
+    throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Please slow down your requests.');
+  }
+
+  // Validate input
+  if (Math.abs(value) > 1000) {
+    throw new HttpsError('invalid-argument', 'Value change too large. Maximum allowed: ±1000');
+  }
 
   const playerRef = db.collection("lobbies")
       .doc(lobbyId).collection("players").doc(playerId);
@@ -361,4 +578,37 @@ exports.updatePlayerSettings = onCall({
   trackWrite(`updatePlayerSettings - update player ${playerId}`);
   
   return { success: true };
+});
+
+// Cleanup function for expired rate limit documents
+exports.cleanupRateLimits = onCall({
+  cors: true
+}, async (req) => {
+  authenticateUser(req.auth);
+  
+  const now = Date.now();
+  const rateLimitsRef = db.collection('rateLimits');
+  
+  // Get expired documents
+  const expiredDocs = await rateLimitsRef
+    .where('expiresAt', '<', now)
+    .limit(100) // Process in batches
+    .get();
+  
+  if (expiredDocs.empty) {
+    return { message: 'No expired rate limit documents found', deleted: 0 };
+  }
+  
+  // Delete expired documents in batch
+  const batch = db.batch();
+  expiredDocs.docs.forEach(doc => {
+    batch.delete(doc.ref);
+  });
+  
+  await batch.commit();
+  
+  return { 
+    message: 'Cleanup completed', 
+    deleted: expiredDocs.docs.length 
+  };
 });
