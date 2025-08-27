@@ -11,7 +11,7 @@ if (!firebase.apps.length) {
 
 // Initialize Firebase Auth, Functions, and Firestore
 const auth = firebase.auth();
-const functions = firebase.app().functions('europe-west4');
+const functions = firebase.app().functions('europe-west3');
 const firestore = firebase.firestore();
 
 // Connect to emulators when running locally
@@ -212,7 +212,7 @@ function populatePlayerGridCommander(snapshot) {
             }
         }
 
-        addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame)
+        addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, playerFrameHeight)
 
         playerFrame.addEventListener('click', async () => {
             openCommanderModal(lobbyId, playerDocument, snapshot);
@@ -258,7 +258,7 @@ function populatePlayerGridInfect(snapshot) {
         }
         playerFrame.appendChild(lifeElement);
 
-        addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame)
+        addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, playerFrameHeight)
         playerGrid.appendChild(playerFrame);
 
         playerFrame.addEventListener('click', async (event) => {
@@ -267,12 +267,22 @@ function populatePlayerGridInfect(snapshot) {
     });
 }
 
-function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame) {
+function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, frameHeight) {
+    // Calculate button size based on frame height
+    const buttonSize = Math.max(12, Math.min(24, frameHeight * 0.08)); // Min 12px, max 24px, 8% of frame height
+    const fontSize = Math.max(8, Math.min(16, frameHeight * 0.06)); // Min 8px, max 16px, 6% of frame height
+    
     // Add the "X" button
     const removeButton = document.createElement('button');
     const playerName = playerDocument.data().name;
     removeButton.textContent = '✖️'
     removeButton.classList.add('remove-player-button');
+    
+    // Set dynamic sizing
+    removeButton.style.width = `${buttonSize}px`;
+    removeButton.style.height = `${buttonSize}px`;
+    removeButton.style.fontSize = `${fontSize}px`;
+    
     removeButton.addEventListener('click', (event) => {
         event.stopPropagation();
         showConfirmationModal(`Are you sure you want to remove ${playerName}?`, async () => {
@@ -283,6 +293,12 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame) {
     const settingsButton = document.createElement('button');
     settingsButton.textContent = '⚙️';
     settingsButton.classList.add('settings-button');
+    
+    // Set dynamic sizing
+    settingsButton.style.width = `${buttonSize}px`;
+    settingsButton.style.height = `${buttonSize}px`;
+    settingsButton.style.fontSize = `${fontSize}px`;
+    
     settingsButton.addEventListener('click', (event) => {
         event.stopPropagation();
         openSettingsModal(playerDocument.id, playerName);
@@ -294,6 +310,7 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame) {
 function populatePlayerGridDefault(snapshot) {
     const pageLabel = document.getElementById('page-label');
     pageLabel.textContent = "Life";
+
 
     const playerGrid = document.getElementById('player-grid');
     playerGrid.innerHTML = ''; // Clear the current player grid
@@ -326,7 +343,7 @@ function populatePlayerGridDefault(snapshot) {
         }
         playerFrame.appendChild(lifeElement);
 
-        addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame)
+        addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, playerFrameHeight)
         playerGrid.appendChild(playerFrame);
 
         playerFrame.addEventListener('click', async (event) => {

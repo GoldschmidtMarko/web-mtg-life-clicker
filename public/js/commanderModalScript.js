@@ -8,7 +8,7 @@ if (!firebase.apps.length) {
 }
 
 // Initialize Firebase Functions and Firestore
-const functions = firebase.app().functions('europe-west4');
+const functions = firebase.app().functions('europe-west3');
 const firestore = firebase.firestore();
 
 // Connect to emulators when running locally

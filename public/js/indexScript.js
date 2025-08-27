@@ -8,7 +8,7 @@ if (!firebase.apps.length) {
 
 // Initialize Firebase Auth, Functions, and Firestore
 const auth = firebase.auth();
-const functions = firebase.app().functions('europe-west4');
+const functions = firebase.app().functions('europe-west3');
 const firestore = firebase.firestore();
 
 // Connect to emulators when running locally
@@ -22,6 +22,7 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
 const createLobby = functions.httpsCallable('createLobby');
 const joinLobby = functions.httpsCallable('joinLobby');
 const savePlayerData = functions.httpsCallable('savePlayerData');
+const cleanupOldLobbies = functions.httpsCallable('cleanupOldLobbies');
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -45,6 +46,21 @@ async function callSavePlayerData(user) {
         console.error('Error saving player data:', error);
         // Don't show user-facing error for this background operation
         // The app will still function normally
+    }
+}
+
+// Function to cleanup old lobbies in the background
+async function performLobbyCleanup() {
+    try {
+        const result = await cleanupOldLobbies();
+        const data = result.data;
+        
+        if (data.deleted > 0) {
+            console.log(`Cleanup completed: ${data.deleted} old lobbies removed`);
+        }
+    } catch (error) {
+        // Silently handle cleanup errors - don't disrupt user experience
+        console.log('Background lobby cleanup skipped:', error.code || error.message);
     }
 }
 
@@ -186,6 +202,9 @@ if (createLobbyBtn) {
             return;
         }
         
+        // Cleanup old lobbies in the background (non-blocking)
+        performLobbyCleanup();
+        
         const playerName = currentUser.displayName.split(" ")[0] || "Player"
         const playerClass = new Player(
             currentUser.uid,
@@ -217,6 +236,9 @@ if (joinLobbyBtn) {
             showSignInWarning();
             return;
         }
+        
+        // Cleanup old lobbies in the background (non-blocking)
+        performLobbyCleanup();
         
         const playerName = joinLobbyUserName.value || "Player"
         const lobbyCode = lobbyCodeInput.value;

@@ -3,7 +3,7 @@ const { initializeApp } = require("firebase-admin/app");
 const {setGlobalOptions} = require("firebase-functions");
 setGlobalOptions({
   maxInstances: 10, 
-  region: "europe-west4"
+  region: "europe-west3",  // Frankfurt, Germany - closest to Cologne
 });
 
 initializeApp();  // <- This must be called BEFORE getFirestore()
@@ -37,6 +37,9 @@ const rateLimitStore = new Map();
 
 // Rate limiting function
 function checkRateLimit(userId, action, maxRequests = 10, windowMs = 60000) {
+  // Clean up expired entries before checking (on-demand cleanup)
+  cleanupExpiredRateLimits();
+  
   const key = `${userId}:${action}`;
   const now = Date.now();
   
@@ -62,15 +65,15 @@ function checkRateLimit(userId, action, maxRequests = 10, windowMs = 60000) {
   return false; // Rate limit exceeded
 }
 
-// Clean up old entries periodically
-setInterval(() => {
+// Clean up old entries on-demand (more efficient than setInterval)
+function cleanupExpiredRateLimits() {
   const now = Date.now();
   for (const [key, value] of rateLimitStore.entries()) {
     if (now > value.resetTime) {
       rateLimitStore.delete(key);
     }
   }
-}, 60000); // Clean every minute
+}
 
 // Advanced debouncing using Firestore for persistence
 async function checkFirestoreRateLimit(userId, action, maxRequests = 10, windowMs = 60000) {
@@ -186,7 +189,8 @@ exports.savePlayerData = onCall({
     name: userRecord.token.name || 'Unknown',
     email: userRecord.token.email || '',
     lastLogin: FieldValue.serverTimestamp(),
-    uid: userId
+    uid: userId,
+    loginCount: FieldValue.increment(1)
   };
 
   try {
@@ -640,5 +644,63 @@ exports.cleanupRateLimits = onCall({
   return { 
     message: 'Cleanup completed', 
     deleted: expiredDocs.docs.length 
+  };
+});
+
+// Cleanup function for old lobbies (older than 7 days)
+exports.cleanupOldLobbies = onCall({
+  cors: true
+}, async (req) => {
+  authenticateUser(req.auth);
+  
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  
+  const lobbiesRef = db.collection('lobbies');
+  
+  // Get lobbies older than 7 days
+  const oldLobbies = await lobbiesRef
+    .where('lastUpdated', '<', sevenDaysAgo)
+    .limit(50) // Process in batches to avoid timeouts
+    .get();
+  
+  if (oldLobbies.empty) {
+    return { message: 'No old lobbies found to delete', deleted: 0 };
+  }
+  
+  let deletedCount = 0;
+  
+  // Delete each lobby and its subcollections
+  for (const lobbyDoc of oldLobbies.docs) {
+    try {
+      const lobbyRef = lobbyDoc.ref;
+      
+      // Delete all players in the lobby first
+      const playersSnapshot = await lobbyRef.collection('players').get();
+      const playerBatch = db.batch();
+      
+      playersSnapshot.docs.forEach(playerDoc => {
+        playerBatch.delete(playerDoc.ref);
+      });
+      
+      if (!playersSnapshot.empty) {
+        await playerBatch.commit();
+        trackWrite(`cleanupOldLobbies - deleted ${playersSnapshot.docs.length} players from lobby ${lobbyDoc.id}`);
+      }
+      
+      // Delete the lobby document itself
+      await lobbyRef.delete();
+      trackWrite(`cleanupOldLobbies - deleted lobby ${lobbyDoc.id}`);
+      
+      deletedCount++;
+    } catch (error) {
+      console.error(`Error deleting lobby ${lobbyDoc.id}:`, error);
+    }
+  }
+  
+  return { 
+    message: `Cleanup completed. Deleted ${deletedCount} old lobbies.`, 
+    deleted: deletedCount,
+    totalFound: oldLobbies.docs.length
   };
 });

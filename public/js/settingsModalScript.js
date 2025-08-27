@@ -7,7 +7,7 @@ if (!firebase.apps.length) {
 }
 
 // Initialize Firebase Functions
-const functions = firebase.app().functions('europe-west4');
+const functions = firebase.app().functions('europe-west3');
 
 // Connect to emulators when running locally
 if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
