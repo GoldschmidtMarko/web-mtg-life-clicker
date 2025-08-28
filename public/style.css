@@ -8,6 +8,81 @@ body {
     background-color: #f0f0f0;
     margin: 0;
     overflow-x: hidden; /* Prevent horizontal scrolling */
+    font-size: clamp(14px, 2.5vw, 20px); /* Responsive base font size */
+}
+
+/* Responsive scaling for the main container */
+#home-view {
+    font-size: clamp(14px, 2.5vw, 20px);
+}
+
+/* Scale main title with viewport */
+#home-view h1 {
+    font-size: clamp(2rem, 8vw, 6rem);
+    line-height: 1.1;
+}
+
+/* Scale buttons responsively */
+#create-lobby-btn, #join-lobby-btn {
+    font-size: clamp(1rem, 3vw, 2.5rem);
+    padding: clamp(0.75rem, 2.5vw, 2rem) clamp(1rem, 3vw, 2.5rem);
+}
+
+#sign-in-button {
+    font-size: clamp(0.875rem, 2.5vw, 1.25rem);
+    padding: clamp(0.5rem, 1.5vw, 1rem) clamp(1rem, 3vw, 2.5rem);
+}
+
+#logout-button {
+    font-size: clamp(0.75rem, 2vw, 1.125rem);
+    padding: clamp(0.375rem, 1vw, 0.75rem) clamp(0.75rem, 2vw, 2rem);
+}
+
+/* Scale input fields */
+#remote-player-name-input, #lobby-code-input {
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+    padding: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+/* Scale section headings */
+h2 {
+    font-size: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+/* Scale icons with viewport */
+svg {
+    width: clamp(1rem, 3vw, 2.5rem);
+    height: clamp(1rem, 3vw, 2.5rem);
+}
+
+/* Responsive spacing */
+.space-responsive {
+    gap: clamp(1rem, 3vw, 2rem);
+}
+
+/* Scale the main card container */
+.main-card {
+    width: clamp(300px, 90vw, 600px);
+    padding: clamp(1rem, 4vw, 3rem);
+    margin: clamp(1rem, 3vw, 2rem);
+}
+
+/* Responsive footer */
+footer {
+    font-size: clamp(0.75rem, 1.5vw, 1rem);
+    margin-top: clamp(1.5rem, 5vw, 3rem);
+}
+
+/* User ID display scaling */
+#user-id-display {
+    font-size: clamp(0.75rem, 1.5vw, 1rem);
+    padding: clamp(0.75rem, 2vw, 1rem);
+    margin-top: clamp(1rem, 3vw, 2rem);
+}
+
+#user-id-value {
+    font-size: clamp(0.875rem, 2vw, 1.125rem);
+    padding: clamp(0.25rem, 1vw, 0.5rem) clamp(0.5rem, 2vw, 1rem);
 }
 
 .lobby-controls {
