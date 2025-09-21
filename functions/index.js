@@ -1,21 +1,26 @@
 const { initializeApp } = require("firebase-admin/app");
-
-const {setGlobalOptions} = require("firebase-functions");
-setGlobalOptions({
-  maxInstances: 10, 
-  region: "europe-west3",  // Frankfurt, Germany - closest to Cologne
-});
-
-initializeApp();  // <- This must be called BEFORE getFirestore()
-
-const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onCall} = require("firebase-functions/v2/https");
+const {setGlobalOptions} = require("firebase-functions/v2");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 
-// Configure Firestore to use emulator when running locally
-const db = getFirestore();
-if (process.env.FUNCTIONS_EMULATOR === "true") {
-  // Set environment variable for Firestore emulator
-  process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
+// Set global options for all functions
+setGlobalOptions({
+  cors: true,
+  maxInstances: 10, 
+  region: 'europe-west3'
+});
+
+// Initialize Firebase Admin
+initializeApp();
+
+
+// Initialize database connection lazily
+let db = null;
+function getDb() {
+  if (!db) {
+    db = getFirestore();
+  }
+  return db;
 }
 
 // Database operation tracking
@@ -24,22 +29,21 @@ let writeCount = 0;
 
 function trackRead(operation) {
   readCount++;
+  console.log(`DB Read ${readCount}: ${operation}`);
   return readCount;
 }
 
 function trackWrite(operation) {
   writeCount++;
+  console.log(`DB Write ${writeCount}: ${operation}`);
   return writeCount;
 }
 
-// Rate limiting storage (in production, use Redis or Firestore)
+// Simple rate limiting storage
 const rateLimitStore = new Map();
 
-// Rate limiting function
+// Basic rate limiting function
 function checkRateLimit(userId, action, maxRequests = 10, windowMs = 60000) {
-  // Clean up expired entries before checking (on-demand cleanup)
-  cleanupExpiredRateLimits();
-  
   const key = `${userId}:${action}`;
   const now = Date.now();
   
@@ -50,42 +54,35 @@ function checkRateLimit(userId, action, maxRequests = 10, windowMs = 60000) {
   
   const userData = rateLimitStore.get(key);
   
-  // Reset if window has passed
   if (now > userData.resetTime) {
     rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
     return true;
   }
   
-  // Check if under limit
   if (userData.count < maxRequests) {
     userData.count++;
     return true;
   }
   
-  return false; // Rate limit exceeded
+  return false;
 }
 
-// Clean up old entries on-demand (more efficient than setInterval)
-function cleanupExpiredRateLimits() {
-  const now = Date.now();
-  for (const [key, value] of rateLimitStore.entries()) {
-    if (now > value.resetTime) {
-      rateLimitStore.delete(key);
-    }
-  }
-}
-
-// Advanced debouncing using Firestore for persistence
+// Advanced debouncing using Firestore for persistence (optional)
 async function checkFirestoreRateLimit(userId, action, maxRequests = 10, windowMs = 60000) {
-  const rateLimitRef = db.collection('rateLimits').doc(`${userId}_${action}`);
+  const db = getDb();
+  if (!db) {
+    console.warn('Database not initialized, falling back to memory rate limiting');
+    return checkRateLimit(userId, action, maxRequests, windowMs);
+  }
+  
+  const rateLimitRef = getDb().collection('rateLimits').doc(`${userId}_${action}`);
   const now = Date.now();
   
   try {
-    const result = await db.runTransaction(async (transaction) => {
+    const result = await getDb().runTransaction(async (transaction) => {
       const doc = await transaction.get(rateLimitRef);
       
       if (!doc.exists) {
-        // First request - create document
         transaction.set(rateLimitRef, {
           count: 1,
           resetTime: now + windowMs,
@@ -96,7 +93,6 @@ async function checkFirestoreRateLimit(userId, action, maxRequests = 10, windowM
       
       const data = doc.data();
       
-      // Reset if window has passed
       if (now > data.resetTime) {
         transaction.update(rateLimitRef, {
           count: 1,
@@ -106,7 +102,6 @@ async function checkFirestoreRateLimit(userId, action, maxRequests = 10, windowM
         return true;
       }
       
-      // Check if under limit
       if (data.count < maxRequests) {
         transaction.update(rateLimitRef, {
           count: data.count + 1,
@@ -115,55 +110,58 @@ async function checkFirestoreRateLimit(userId, action, maxRequests = 10, windowM
         return true;
       }
       
-      return false; // Rate limit exceeded
+      return false;
     });
     
     return result;
   } catch (error) {
     console.error('Firestore rate limit check failed:', error);
-    // Fall back to memory-based rate limiting
     return checkRateLimit(userId, action, maxRequests, windowMs);
   }
 }
 
-// Debouncing for frequent updates - only allow if enough time has passed
+// Debouncing for frequent updates (optional)
 async function shouldDebounceUpdate(userId, playerId, field, minIntervalMs = 100) {
+  const db = getDb();
+  if (!db) {
+    console.warn('Database not initialized, skipping debounce check');
+    return false;
+  }
+  
   const debounceKey = `debounce_${userId}_${playerId}_${field}`;
-  const rateLimitRef = db.collection('rateLimits').doc(debounceKey);
+  const rateLimitRef = getDb().collection('rateLimits').doc(debounceKey);
   const now = Date.now();
   
   try {
-    const result = await db.runTransaction(async (transaction) => {
+    const result = await getDb().runTransaction(async (transaction) => {
       const doc = await transaction.get(rateLimitRef);
       
       if (!doc.exists) {
-        // First update - allow it
         transaction.set(rateLimitRef, {
           lastUpdate: now,
-          expiresAt: now + (24 * 60 * 60 * 1000) // 24 hours TTL
+          expiresAt: now + (24 * 60 * 60 * 1000)
         });
-        return false; // Don't debounce
+        return false;
       }
       
       const data = doc.data();
       const timeSinceLastUpdate = now - data.lastUpdate;
       
       if (timeSinceLastUpdate >= minIntervalMs) {
-        // Enough time has passed - allow update
         transaction.update(rateLimitRef, {
           lastUpdate: now,
           expiresAt: now + (24 * 60 * 60 * 1000)
         });
-        return false; // Don't debounce
+        return false;
       }
       
-      return true; // Should debounce (too soon)
+      return true;
     });
     
     return result;
   } catch (error) {
     console.error('Debounce check failed:', error);
-    return false; // Default to allowing the update
+    return false;
   }
 }
 
@@ -176,18 +174,23 @@ function authenticateUser(auth) {
 
 // Save or update player data when user signs in
 exports.savePlayerData = onCall({
-  cors: true,
-  timeoutSeconds: 10
-}, async (req) => {
-  authenticateUser(req.auth);
-  const userId = req.auth.uid;
+  cors: true
+}, async (request) => {
+  const data = request.data;
+  const auth = request.auth;
+  
+  if (!auth) {
+    throw new HttpsError('unauthenticated', 'User must be signed in.');
+  }
+  
+  const userId = auth.uid;
   
   // Get user info from Firebase Auth token
-  const userRecord = req.auth;
+  const userRecord = auth;
   
   const playerData = {
-    name: userRecord.token.name || 'Unknown',
-    email: userRecord.token.email || '',
+    name: userRecord.token?.name || 'Unknown',
+    email: userRecord.token?.email || '',
     lastLogin: FieldValue.serverTimestamp(),
     uid: userId,
     loginCount: FieldValue.increment(1)
@@ -195,7 +198,7 @@ exports.savePlayerData = onCall({
 
   try {
     // Use set with merge option to create or update the document
-    await db.collection('players').doc(userId).set(playerData, { merge: true });
+    await getDb().collection('players').doc(userId).set(playerData, { merge: true });
     trackWrite("savePlayerData - player data save");
     
     return { success: true, message: 'Player data saved successfully' };
@@ -209,10 +212,10 @@ exports.savePlayerData = onCall({
 exports.createLobby = onCall({
   cors: true,
   timeoutSeconds: 10
-}, async (req) => {
-  const player = req.data; // req.data IS the player object
-  authenticateUser(req.auth);
-  const userId = req.auth.uid;
+}, async (request) => {
+  const player = request.data; // request.data IS the player object
+  authenticateUser(request.auth);
+  const userId = request.auth.uid;
   const playerName = player.name || "Player";
 
   // Rate limiting: max 3 lobbies per 5 minutes per user
@@ -233,7 +236,7 @@ exports.createLobby = onCall({
   };
 
   try {
-    const lobbyRef = db.collection("lobbies").doc(lobbyCode);
+    const lobbyRef = getDb().collection("lobbies").doc(lobbyCode);
     await lobbyRef.set(newLobby);
     trackWrite("createLobby - lobby creation");
 
@@ -251,10 +254,10 @@ exports.createLobby = onCall({
 // Join a lobby (callable)
 exports.joinLobby = onCall({
   cors: true
-}, async (req) => {
-  const {player, lobbyCode} = req.data;
-  authenticateUser(req.auth);
-  const userId = req.auth.uid;
+}, async (request) => {
+  const {player, lobbyCode} = request.data;
+  authenticateUser(request.auth);
+  const userId = request.auth.uid;
 
   // Validate required parameters
   if (!lobbyCode || typeof lobbyCode !== 'string' || lobbyCode.trim() === '') {
@@ -272,7 +275,7 @@ exports.joinLobby = onCall({
 
   try {
     // Check if lobby exists
-    const lobbyRef = db.collection("lobbies").doc(lobbyCode);
+    const lobbyRef = getDb().collection("lobbies").doc(lobbyCode);
     const lobbyDoc = await lobbyRef.get();
     
     if (!lobbyDoc.exists) {
@@ -301,11 +304,11 @@ exports.joinLobby = onCall({
 // Get all players in a lobby
 exports.getPlayers = onCall({
   cors: true
-}, async (req) => {
-  const {lobbyId} = req.data;
-  authenticateUser(req.auth);
+}, async (request) => {
+  const {lobbyId} = request.data;
+  authenticateUser(request.auth);
 
-  const playersSnapshot = await db.collection("lobbies")
+  const playersSnapshot = await getDb().collection("lobbies")
       .doc(lobbyId).collection("players").get();
   trackRead(`getPlayers - ${playersSnapshot.docs.length} players`);
 
@@ -323,10 +326,10 @@ exports.getPlayers = onCall({
 // Update a player in a lobby
 exports.updatePlayer = onCall({
   cors: true
-}, async (req) => {
-  const {lobbyId, playerId, updates} = req.data;
-  authenticateUser(req.auth);
-  const userId = req.auth.uid;
+}, async (request) => {
+  const {lobbyId, playerId, updates} = request.data;
+  authenticateUser(request.auth);
+  const userId = request.auth.uid;
 
   // Use Firestore-based rate limiting for persistent tracking
   if (!(await checkFirestoreRateLimit(userId, 'updatePlayer', 50, 60000))) {
@@ -371,7 +374,7 @@ exports.updatePlayer = onCall({
     }
   }
 
-  const playerRef = db.collection("lobbies")
+  const playerRef = getDb().collection("lobbies")
       .doc(lobbyId).collection("players").doc(playerId);
   await playerRef.update(updates);
   trackWrite(`updatePlayer - ${playerId} fields: ${Object.keys(updates).join(', ')}`);
@@ -382,11 +385,11 @@ exports.updatePlayer = onCall({
 // Delete a player from a lobby
 exports.deletePlayer = onCall({
   cors: true
-}, async (req) => {
-  const {lobbyId, playerId} = req.data;
-  authenticateUser(req.auth);
+}, async (request) => {
+  const {lobbyId, playerId} = request.data;
+  authenticateUser(request.auth);
 
-  const playerRef = db.collection("lobbies")
+  const playerRef = getDb().collection("lobbies")
       .doc(lobbyId).collection("players").doc(playerId);
   await playerRef.delete();
   trackWrite(`deletePlayer - ${playerId}`);
@@ -397,10 +400,10 @@ exports.deletePlayer = onCall({
 // Increment a player's field (e.g. life, score)
 exports.incrementPlayerField = onCall({
   cors: true
-}, async (req) => {
-  const {lobbyId, playerId, field, value} = req.data;
-  authenticateUser(req.auth);
-  const userId = req.auth.uid;
+}, async (request) => {
+  const {lobbyId, playerId, field, value} = request.data;
+  authenticateUser(request.auth);
+  const userId = request.auth.uid;
 
   // Rate limiting: max 30 increments per minute per user
   if (!checkRateLimit(userId, 'incrementPlayerField', 30, 60000)) {
@@ -412,7 +415,7 @@ exports.incrementPlayerField = onCall({
     throw new HttpsError('invalid-argument', 'Value change too large. Maximum allowed: ±1000');
   }
 
-  const playerRef = db.collection("lobbies")
+  const playerRef = getDb().collection("lobbies")
       .doc(lobbyId).collection("players").doc(playerId);
   await playerRef.update({[field]: FieldValue.increment(value)});
   trackWrite(`incrementPlayerField - ${playerId} ${field} by ${value}`);
@@ -423,14 +426,14 @@ exports.incrementPlayerField = onCall({
 // Update commander damages in a transaction
 exports.updateCommanderDamage = onCall({
   cors: true
-}, async (req) => {
-  const {lobbyId, playerId, commanderDamages} = req.data;
-  authenticateUser(req.auth);
+}, async (request) => {
+  const {lobbyId, playerId, commanderDamages} = request.data;
+  authenticateUser(request.auth);
 
-  const playerRef = db.collection("lobbies")
+  const playerRef = getDb().collection("lobbies")
       .doc(lobbyId).collection("players").doc(playerId);
 
-  await db.runTransaction(async (transaction) => {
+  await getDb().runTransaction(async (transaction) => {
     const doc = await transaction.get(playerRef);
     trackRead(`updateCommanderDamage - get player ${playerId}`);
     if (!doc.exists) throw new Error("Player document does not exist");
@@ -445,29 +448,29 @@ exports.updateCommanderDamage = onCall({
 // Apply combat damage transaction
 exports.applyCombatDamage = onCall({
   cors: true
-}, async (req) => {
-  const {lobbyId, playerId} = req.data;
-  authenticateUser(req.auth);
+}, async (request) => {
+  const {lobbyId, playerId} = request.data;
+  authenticateUser(request.auth);
 
   // Validate required parameters
   if (!lobbyId || typeof lobbyId !== 'string' || lobbyId.trim() === '') {
-    throw new Error("Missing or invalid lobbyId parameter");
+    throw new HttpsError('invalid-argument', "Missing or invalid lobbyId parameter");
   }
   if (!playerId || typeof playerId !== 'string' || playerId.trim() === '') {
-    throw new Error("Missing or invalid playerId parameter");
+    throw new HttpsError('invalid-argument', "Missing or invalid playerId parameter");
   }
 
   try {
-    const playerRef = db.collection("lobbies")
+    const playerRef = getDb().collection("lobbies")
         .doc(lobbyId).collection("players").doc(playerId);
 
-    const result = await db.runTransaction(async (transaction) => {
+    const result = await getDb().runTransaction(async (transaction) => {
       try {
         const playerDoc = await transaction.get(playerRef);
         trackRead(`applyCombatDamage - get player ${playerId}`);
         
         if (!playerDoc.exists) {
-          throw new Error(`Player document does not exist: ${playerId}`);
+          throw new HttpsError('not-found', `Player document does not exist: ${playerId}`);
         }
 
         const playerData = playerDoc.data();
@@ -475,7 +478,7 @@ exports.applyCombatDamage = onCall({
         // Validate player data structure
         if (typeof playerData.life !== 'number') {
           console.error(`Invalid life value for player ${playerId}:`, playerData.life);
-          throw new Error(`Player ${playerId} has invalid life value: ${playerData.life}`);
+          throw new HttpsError('invalid-argument', `Player ${playerId} has invalid life value: ${playerData.life}`);
         }
 
         let commanderDamages = playerData.commanderDamages || [];
@@ -490,7 +493,7 @@ exports.applyCombatDamage = onCall({
         commanderDamages = commanderDamages.map((cd) => {
           if (typeof cd.damageToApply !== 'number' || typeof cd.damage !== 'number') {
             console.error(`Invalid commander damage data for player ${playerId}:`, cd);
-            return cd; // Return as-is to avoid breaking
+            return cd;
           }
           totalCommanderDamageToApply += cd.damageToApply;
           return {
@@ -517,7 +520,7 @@ exports.applyCombatDamage = onCall({
 
         // Validate update data before applying
         if (typeof updateData.life !== 'number' || typeof updateData.infect !== 'number') {
-          throw new Error(`Invalid update data for player ${playerId}: life=${updateData.life}, infect=${updateData.infect}`);
+          throw new HttpsError('internal', `Invalid update data for player ${playerId}: life=${updateData.life}, infect=${updateData.infect}`);
         }
         
         transaction.update(playerRef, updateData);
@@ -533,19 +536,25 @@ exports.applyCombatDamage = onCall({
     return {success: true, data: result};
   } catch (error) {
     console.error(`applyCombatDamage error for ${playerId}:`, error);
-    throw new Error(`Failed to apply combat damage for player ${playerId}: ${error.message}`);
+    // Re-throw HttpsError instances
+    if (error.code && error.code.startsWith('functions/')) {
+      throw error;
+    }
+    throw new HttpsError('internal', `Failed to apply combat damage for player ${playerId}: ${error.message}`);
   }
 });
 
 exports.addPlayer = onCall({
   cors: true
-}, async (req) => {
-  const {lobbyId, player} = req.data;
-  authenticateUser(req.auth);
+}, async (request) => {
+  const {lobbyId, player} = request.data;
+  authenticateUser(request.auth);
 
-  if (!lobbyId || !player) throw new Error("Missing lobbyId or player");
+  if (!lobbyId || !player) {
+    throw new HttpsError('invalid-argument', "Missing lobbyId or player");
+  }
 
-  const playersRef = db.collection('lobbies').doc(lobbyId).collection('players');
+  const playersRef = getDb().collection('lobbies').doc(lobbyId).collection('players');
 
   // Extract the id from player data and use it as document ID
   const playerId = player.id;
@@ -565,11 +574,11 @@ exports.addPlayer = onCall({
 // Update lobby timestamp
 exports.updateLobbyTimestamp = onCall({
   cors: true
-}, async (req) => {
-  const { lobbyId } = req.data;
-  authenticateUser(req.auth);
+}, async (request) => {
+  const { lobbyId } = request.data;
+  authenticateUser(request.auth);
 
-  const lobbyRef = db.collection('lobbies').doc(lobbyId);
+  const lobbyRef = getDb().collection('lobbies').doc(lobbyId);
   await lobbyRef.update({
     lastUpdated: FieldValue.serverTimestamp()
   });
@@ -581,22 +590,22 @@ exports.updateLobbyTimestamp = onCall({
 // Update player settings (name, colors, etc.)
 exports.updatePlayerSettings = onCall({
   cors: true
-}, async (req) => {
-  const {lobbyId, playerId, settings} = req.data;
-  authenticateUser(req.auth);
+}, async (request) => {
+  const {lobbyId, playerId, settings} = request.data;
+  authenticateUser(request.auth);
 
   // Validate required parameters
   if (!lobbyId || typeof lobbyId !== 'string' || lobbyId.trim() === '') {
-    throw new Error("Missing or invalid lobbyId parameter");
+    throw new HttpsError('invalid-argument', "Missing or invalid lobbyId parameter");
   }
   if (!playerId || typeof playerId !== 'string' || playerId.trim() === '') {
-    throw new Error("Missing or invalid playerId parameter");
+    throw new HttpsError('invalid-argument', "Missing or invalid playerId parameter");
   }
   if (!settings || typeof settings !== 'object') {
-    throw new Error("Missing or invalid settings parameter");
+    throw new HttpsError('invalid-argument', "Missing or invalid settings parameter");
   }
 
-  const playerRef = db.collection("lobbies")
+  const playerRef = getDb().collection("lobbies")
       .doc(lobbyId).collection("players").doc(playerId);
 
   // Validate that the player exists
@@ -604,7 +613,7 @@ exports.updatePlayerSettings = onCall({
   trackRead(`updatePlayerSettings - get player ${playerId}`);
   
   if (!playerDoc.exists) {
-    throw new Error(`Player document does not exist: ${playerId}`);
+    throw new HttpsError('not-found', `Player document does not exist: ${playerId}`);
   }
 
   // Update the player settings
@@ -617,11 +626,11 @@ exports.updatePlayerSettings = onCall({
 // Cleanup function for expired rate limit documents
 exports.cleanupRateLimits = onCall({
   cors: true
-}, async (req) => {
-  authenticateUser(req.auth);
+}, async (request) => {
+  authenticateUser(request.auth);
   
   const now = Date.now();
-  const rateLimitsRef = db.collection('rateLimits');
+  const rateLimitsRef = getDb().collection('rateLimits');
   
   // Get expired documents
   const expiredDocs = await rateLimitsRef
@@ -634,7 +643,7 @@ exports.cleanupRateLimits = onCall({
   }
   
   // Delete expired documents in batch
-  const batch = db.batch();
+  const batch = getDb().batch();
   expiredDocs.docs.forEach(doc => {
     batch.delete(doc.ref);
   });
@@ -650,13 +659,13 @@ exports.cleanupRateLimits = onCall({
 // Cleanup function for old lobbies (older than 7 days)
 exports.cleanupOldLobbies = onCall({
   cors: true
-}, async (req) => {
-  authenticateUser(req.auth);
+}, async (request) => {
+  authenticateUser(request.auth);
   
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   
-  const lobbiesRef = db.collection('lobbies');
+  const lobbiesRef = getDb().collection('lobbies');
   
   // Get lobbies older than 7 days
   const oldLobbies = await lobbiesRef
@@ -677,7 +686,7 @@ exports.cleanupOldLobbies = onCall({
       
       // Delete all players in the lobby first
       const playersSnapshot = await lobbyRef.collection('players').get();
-      const playerBatch = db.batch();
+      const playerBatch = getDb().batch();
       
       playersSnapshot.docs.forEach(playerDoc => {
         playerBatch.delete(playerDoc.ref);
@@ -702,5 +711,21 @@ exports.cleanupOldLobbies = onCall({
     message: `Cleanup completed. Deleted ${deletedCount} old lobbies.`, 
     deleted: deletedCount,
     totalFound: oldLobbies.docs.length
+  };
+});
+
+
+
+// Simple function with Firebase Admin
+exports.testWithAdmin = onCall({
+  cors: true,
+  region: 'europe-west3'
+}, async (request) => {
+  console.log("Test function with Firebase Admin called");
+  
+  return { 
+    success: true, 
+    message: 'Function with Firebase Admin working!',
+    timestamp: new Date().toISOString()
   };
 });
