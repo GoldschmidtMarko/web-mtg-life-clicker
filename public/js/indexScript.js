@@ -23,17 +23,13 @@ const createLobby = functions.httpsCallable('createLobby');
 const joinLobby = functions.httpsCallable('joinLobby');
 const savePlayerData = functions.httpsCallable('savePlayerData');
 const cleanupOldLobbies = functions.httpsCallable('cleanupOldLobbies');
-const testWithAdmin = functions.httpsCallable('testWithAdmin');
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
 // Get references to HTML elements *inside* this listener
 const createLobbyBtn = document.getElementById('create-lobby-btn');
-const testAdminBtn = document.getElementById('test-admin-btn');
 const lobbyCodeInput = document.getElementById('lobby-code-input');
 const joinLobbyBtn = document.getElementById('join-lobby-btn');
-const userIdDisplay = document.getElementById('user-id-display');
-const userIdValue = document.getElementById('user-id-value');
 const signInButton = document.getElementById('sign-in-button');
 const logoutButton = document.getElementById('logout-button');
 const joinLobbyUserName = document.getElementById('remote-player-name-input');
@@ -74,23 +70,16 @@ firebase.auth().onAuthStateChanged(async (user) => {
         // Save player data to Firestore via backend function
         await callSavePlayerData(user);
 
-        if (userIdValue) userIdValue.textContent = currentUser.uid;
-        if (userIdDisplay) userIdDisplay.classList.remove('hidden');
-
         // Enable buttons and hide sign-in button when authenticated
         if (createLobbyBtn) createLobbyBtn.disabled = false;
-        if (testAdminBtn) testAdminBtn.disabled = false;
         if (joinLobbyBtn) joinLobbyBtn.disabled = false;
         if (signInButton) signInButton.style.display = 'none';
         if (logoutButton) logoutButton.classList.remove('hidden');
     } else {
         currentUser = null;
 
-        if (userIdDisplay) userIdDisplay.classList.add('hidden');
-
         // Keep buttons enabled but they will show warning popup
         if (createLobbyBtn) createLobbyBtn.disabled = false;
-        if (testAdminBtn) testAdminBtn.disabled = false;
         if (joinLobbyBtn) joinLobbyBtn.disabled = false;
         if (signInButton) signInButton.style.display = 'block';
         if (logoutButton) logoutButton.classList.add('hidden');
@@ -231,59 +220,6 @@ if (createLobbyBtn) {
     });
 }
 
-// Event listener for Test Admin Function button
-if (testAdminBtn) {
-    testAdminBtn.addEventListener('click', async () => {
-        try {
-            console.log('Calling testWithAdmin function...');
-            const result = await testWithAdmin();
-            const data = result.data;
-            
-            // Show success message
-            let successDiv = document.getElementById('success-message');
-            if (!successDiv) {
-                successDiv = document.createElement('div');
-                successDiv.id = 'success-message';
-                successDiv.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: #4CAF50;
-                    color: white;
-                    padding: 15px 20px;
-                    border-radius: 5px;
-                    z-index: 10000;
-                    font-weight: bold;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-                    max-width: 80%;
-                    text-align: center;
-                `;
-                document.body.appendChild(successDiv);
-            }
-            
-            successDiv.innerHTML = `
-                <div>✅ ${data.message}</div>
-                <div style="font-size: 0.9em; margin-top: 5px;">Timestamp: ${data.timestamp}</div>
-            `;
-            successDiv.style.display = 'block';
-            
-            // Hide success message after 5 seconds
-            setTimeout(() => {
-                if (successDiv) {
-                    successDiv.style.display = 'none';
-                }
-            }, 5000);
-            
-            console.log('testWithAdmin result:', data);
-        } catch (error) {
-            console.error('Error calling testWithAdmin:', error);
-            showErrorMessage(error);
-        }
-    });
-}
-
-
 // Event listener for Join Lobby button *inside* this listener
 if (joinLobbyBtn) {
     joinLobbyBtn.addEventListener('click', async () => {
@@ -332,7 +268,6 @@ if (logoutButton) {
 
 // Initial state: buttons are enabled but will show warning if not authenticated
 if (createLobbyBtn) createLobbyBtn.disabled = false;
-if (testAdminBtn) testAdminBtn.disabled = false;
 if (joinLobbyBtn) joinLobbyBtn.disabled = false;
 
 });

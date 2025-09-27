@@ -37,12 +37,14 @@
     height: 100%;
     padding: 10px;
     position: relative;
+    overflow: hidden; /* Ensure overlay stays inside */
 }
 
-.settings-button {
+.settings-button,
+.remove-player-button {
     position: absolute;
-    top: 2px;
-    right: 3px;
+    z-index: 10; /* Ensure above overlay squares */
+    pointer-events: auto;
     background-color: transparent;
     display: flex;
     align-items: center;
@@ -52,17 +54,14 @@
 }
 
 .remove-player-button {
-    position: absolute;
     top: 2px;
     left: 3px;
-    background-color: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    cursor: pointer;
 }
 
+.settings-button {
+    top: 2px;
+    right: 3px;
+}
 
 .modal {
     display: none; /* Hidden by default */
@@ -128,4 +127,40 @@
 .dot.filled {
     background-color: #3B82F6; /* Changed to blue */
     border: 2px solid #FFFFFF; /* Added white border */
+}
+
+.player-frame-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    z-index: 2;
+    pointer-events: none; /* Only overlay squares get pointer events */
+}
+.player-frame-overlay .overlay-square {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: rgba(0,0,0,0.0); /* Label text fully transparent by default */
+    background: rgba(0,0,0,0.18);
+    border: 1px dashed rgba(0, 0, 0, 0.4); /* Dashed border, semi-transparent */
+    border-radius: 0px;
+    margin: 0px;
+    pointer-events: auto;
+    z-index: 3;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s, border-color 0.2s;
+}
+.player-frame-overlay .overlay-square:hover {
+    color: #111; /* Black and visible on hover */
+    background: rgba(255, 255, 255, 0.205); /* White background for contrast */
+    border-color: rgba(37, 99, 235, 0.7); /* Slightly less transparent on hover */
+    border-style: dashed;
 }

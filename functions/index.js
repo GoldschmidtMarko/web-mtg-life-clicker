@@ -714,18 +714,26 @@ exports.cleanupOldLobbies = onCall({
   };
 });
 
+exports.startTimer = onCall({ cors: true }, async (request) => {
+  const { lobbyId, duration } = request.data;
+  authenticateUser(request.auth);
 
+  if (!lobbyId || typeof lobbyId !== 'string' || lobbyId.trim() === '') {
+    throw new HttpsError('invalid-argument', 'Missing or invalid lobbyId parameter');
+  }
+  if (!duration || typeof duration !== 'number' || duration <= 0) {
+    throw new HttpsError('invalid-argument', 'Missing or invalid duration parameter');
+  }
 
-// Simple function with Firebase Admin
-exports.testWithAdmin = onCall({
-  cors: true,
-  region: 'europe-west3'
-}, async (request) => {
-  console.log("Test function with Firebase Admin called");
-  
-  return { 
-    success: true, 
-    message: 'Function with Firebase Admin working!',
-    timestamp: new Date().toISOString()
-  };
+  const lobbyRef = getFirestore().collection('lobbies').doc(lobbyId);
+  const timerEnd = Date.now() + duration * 60 * 1000;
+
+  await lobbyRef.update({
+    timerEnd,
+    timerDuration: duration,
+    timerStartedAt: Date.now()
+  });
+  trackWrite(`startTimer - lobby ${lobbyId} for ${duration} min`);
+
+  return { success: true, timerEnd };
 });

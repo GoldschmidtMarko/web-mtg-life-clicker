@@ -27,6 +27,7 @@ const deletePlayer = functions.httpsCallable('deletePlayer');
 const applyCombatDamage = functions.httpsCallable('applyCombatDamage');
 const addPlayer = functions.httpsCallable('addPlayer');
 const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
+const startTimer = functions.httpsCallable('startTimer');
 
 // Function to show spam/error warnings
 function showSpamWarning(message = 'Please slow down! Too many requests.') {
@@ -220,6 +221,7 @@ function populatePlayerGridCommander(snapshot) {
 
         playerGrid.appendChild(playerFrame);
 
+        createPlayerFrameOverlay(playerFrame);
     });
 }
 
@@ -258,12 +260,15 @@ function populatePlayerGridInfect(snapshot) {
         }
         playerFrame.appendChild(lifeElement);
 
+        createPlayerFrameOverlay(playerFrame);
+
         addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, playerFrameHeight)
         playerGrid.appendChild(playerFrame);
 
         playerFrame.addEventListener('click', async (event) => {
             handlePlayerFrameClick(event, lobbyId, playerDocument, "infectToApply");
         });
+
     });
 }
 
@@ -349,6 +354,8 @@ function populatePlayerGridDefault(snapshot) {
         playerFrame.addEventListener('click', async (event) => {
             handlePlayerFrameClick(event, lobbyId, playerDocument, "damageToApply");
         });
+
+        createPlayerFrameOverlay(playerFrame);
     });
 }
 
@@ -374,31 +381,45 @@ function renderCurrentPage() {
 async function handlePlayerFrameClick(event, lobbyId, playerDocument, attributeKey) {
     const playerFrame = event.currentTarget; // Get the button element that was clicked
     const buttonWidth = playerFrame.offsetWidth;
+    const buttonHeight = playerFrame.offsetHeight;
     const clickX = event.clientX - playerFrame.getBoundingClientRect().left;
+    const clickY = event.clientY - playerFrame.getBoundingClientRect().top;
+    let delta = 0;
+    // Top half
+    if (clickY < buttonHeight / 2) {
+        // Left = -1, Right = +1
+        if (clickX < buttonWidth / 2) {
+            delta = -1;
+        } else {
+            delta = 1;
+        }
+    } else {
+        // Bottom half
+        // Left = -5, Right = +5
+        if (clickX < buttonWidth / 2) {
+            delta = -5;
+        } else {
+            delta = 5;
+        }
+    }
 
-     try {
+    try {
         const currentPlayer = playerSnapshot?.docs.find(doc => doc.id === playerDocument.id);
         if (!currentPlayer) return;
         const currentValue = currentPlayer.data()[attributeKey];
 
-        if (clickX < buttonWidth / 2) {
-            await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { [attributeKey]: currentValue - 1 } });
-        } else {
-            await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { [attributeKey]: currentValue + 1 } });
-        }
-
-            // Update lobby last updated timestamp (optional)
+        await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { [attributeKey]: currentValue + delta } });
+        // Update lobby last updated timestamp (optional)
         await updateLobbyTimestamp({ lobbyId });
-     } catch (error) {
-         console.error(`Error updating player attribute for ${playerDocument.id}:`, error);
-         
-         // Show user-friendly error message
-         if (error.code === 'functions/resource-exhausted') {
-             showSpamWarning(error.message || 'Rate limit exceeded. Please slow down.');
-         } else {
-             console.error('Update failed:', error.message);
-         }
-     }
+    } catch (error) {
+        console.error(`Error updating player attribute for ${playerDocument.id}:`, error);
+        // Show user-friendly error message
+        if (error.code === 'functions/resource-exhausted') {
+            showSpamWarning(error.message || 'Rate limit exceeded. Please slow down.');
+        } else {
+            console.error('Update failed:', error.message);
+        }
+    }
 }
 
 function addClickHandler(id, handler) {
@@ -506,11 +527,115 @@ function setupAddDummyPlayerButton(lobbyId) {
 }
 
 
+// Timer functionality
+function setupTimerButton(lobbyId) {
+    const timerButton = document.getElementById('timer');
+    const timerInput = document.getElementById('timer-duration');
+    if (timerButton && timerInput) {
+        timerButton.addEventListener('click', async () => {
+            const duration = parseInt(timerInput.value, 10);
+            if (isNaN(duration) || duration <= 0) {
+                alert('Please enter a valid timer duration (minutes).');
+                return;
+            }
+            try {
+                await startTimer({ lobbyId, duration });
+            } catch (error) {
+                console.error('Error starting timer:', error);
+            }
+        });
+    }
+}
+
+function listenToLobbyTimer(lobbyId) {
+    const lobbyRef = firebase.firestore().collection('lobbies').doc(lobbyId);
+    lobbyRef.onSnapshot(doc => {
+        const data = doc.data();
+        if (data && data.timerEnd) {
+            showLobbyTimer(data.timerEnd);
+        } else {
+            hideLobbyTimer();
+        }
+    });
+}
+
+function showLobbyTimer(timerEnd) {
+    // If timerEnd is not valid or already expired, remove timer display and return
+    const now = Date.now();
+    if (!timerEnd || isNaN(timerEnd) || timerEnd <= 0 || timerEnd < now) {
+        hideLobbyTimer();
+        return;
+    }
+    let timerDisplay = document.getElementById('lobby-timer-display');
+    if (!timerDisplay) {
+        timerDisplay = document.createElement('div');
+        timerDisplay.id = 'lobby-timer-display';
+        timerDisplay.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 24px;border-radius:8px;font-size:1.5em;z-index:10001;box-shadow:0 2px 10px rgba(0,0,0,0.3);cursor:pointer;';
+        timerDisplay.title = 'Click to hide timer';
+        timerDisplay.addEventListener('click', hideLobbyTimer);
+        document.body.appendChild(timerDisplay);
+    }
+    // Add audio element for last 10 seconds sound
+    let timerAudio = document.getElementById('timer-audio');
+    if (!timerAudio) {
+        timerAudio = document.createElement('audio');
+        timerAudio.id = 'timer-audio';
+        timerAudio.src = 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg'; // royalty-free beep
+        timerAudio.preload = 'auto';
+        timerAudio.controls = false; // Hide controls now that audio works
+        timerAudio.volume = 1.0; // Ensure volume is max
+        timerAudio.style.position = 'fixed';
+        timerAudio.style.bottom = '10px';
+        timerAudio.style.left = '10px';
+        timerAudio.style.zIndex = '10002';
+        document.body.appendChild(timerAudio);
+    }
+
+    let lastBeepSecond = null;
+
+    function updateTimer() {
+        const now = Date.now();
+        const msLeft = timerEnd - now;
+        if (msLeft > 0) {
+            const min = Math.floor(msLeft / 60000);
+            const sec = Math.floor((msLeft % 60000) / 1000);
+            timerDisplay.textContent = `Timer: ${min}:${sec.toString().padStart(2, '0')}`;
+            // Play sound every second in last 10 seconds
+            if (msLeft <= 10000) {
+                if (lastBeepSecond !== sec) {
+                    lastBeepSecond = sec;
+                    timerAudio.currentTime = 0;
+                    timerAudio.volume = 1.0;
+                    timerAudio.play().catch((err) => {
+                        console.error('Timer audio play failed:', err);
+                    });
+                }
+            }
+        } else {
+            timerDisplay.textContent = 'Timer finished!';
+            clearInterval(timerDisplay._interval);
+            setTimeout(hideLobbyTimer, 5000);
+        }
+    }
+    if (timerDisplay._interval) clearInterval(timerDisplay._interval);
+    updateTimer();
+    timerDisplay._interval = setInterval(updateTimer, 1000);
+}
+
+function hideLobbyTimer() {
+    const timerDisplay = document.getElementById('lobby-timer-display');
+    if (timerDisplay) {
+        if (timerDisplay._interval) clearInterval(timerDisplay._interval);
+        timerDisplay.remove();
+    }
+}
+
 // --- Initialize Lobby ---
 if (lobbyId) {
     initializeLobbyUI(lobbyId);
     initializeControls(lobbyId);
     setupPlayerListener(lobbyId);
+    listenToLobbyTimer(lobbyId);
 } else {
     console.error("Lobby ID not found!");
 }
@@ -523,6 +648,7 @@ function initializeControls(lobbyId) {
     setupApplyButton(lobbyId);
     setupAbortButton(lobbyId);
     setupAddDummyPlayerButton(lobbyId);
+    setupTimerButton(lobbyId);
 }
 
 function setupExitLobbyButton() {
@@ -585,5 +711,27 @@ function setupResetLifeButton(lobbyId) {
             }
         });
     }
+}
+
+function createPlayerFrameOverlay(playerFrame) {
+    // Create overlay container
+    const overlay = document.createElement('div');
+    overlay.className = 'player-frame-overlay';
+
+    // Create 4 regions as squares
+    const regions = [
+        { label: '-1', style: 'grid-row: 1; grid-column: 1;' },
+        { label: '+1', style: 'grid-row: 1; grid-column: 2;' },
+        { label: '-5', style: 'grid-row: 2; grid-column: 1;' },
+        { label: '+5', style: 'grid-row: 2; grid-column: 2;' }
+    ];
+    regions.forEach((region) => {
+        const div = document.createElement('div');
+        div.className = 'overlay-square';
+        div.textContent = region.label;
+        div.style.cssText += region.style;
+        overlay.appendChild(div);
+    });
+    playerFrame.appendChild(overlay);
 }
 
