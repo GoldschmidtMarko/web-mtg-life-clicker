@@ -1,5 +1,5 @@
 const { initializeApp } = require("firebase-admin/app");
-const {onCall} = require("firebase-functions/v2/https");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {setGlobalOptions} = require("firebase-functions/v2");
 const {getFirestore, FieldValue} = require("firebase-admin/firestore");
 
@@ -736,4 +736,52 @@ exports.startTimer = onCall({ cors: true }, async (request) => {
   trackWrite(`startTimer - lobby ${lobbyId} for ${duration} min`);
 
   return { success: true, timerEnd };
+});
+
+// Record user's interest in supporting the project
+exports.recordPayInterest = onCall({
+  cors: true
+}, async (request) => {
+  authenticateUser(request.auth);
+  const userId = request.auth.uid;
+
+  // Rate limiting: max 5 interest records per hour per user to prevent spam
+  if (!(await checkFirestoreRateLimit(userId, 'recordPayInterest', 5, 3600000))) {
+    throw new HttpsError('resource-exhausted', 'You can only show interest 5 times per hour. Thank you for your enthusiasm!');
+  }
+
+  try {
+    // Reference to the user's document in the players collection
+    const userDocRef = getDb().collection('players').doc(userId);
+    
+    // Get current document
+    const doc = await userDocRef.get();
+    trackRead(`recordPayInterest - get player ${userId}`);
+    
+    if (doc.exists) {
+      // Increment the pay_interest field
+      await userDocRef.update({
+        pay_interest: FieldValue.increment(1),
+        last_interest_shown: FieldValue.serverTimestamp()
+      });
+      trackWrite(`recordPayInterest - update existing player ${userId}`);
+    } else {
+      // Create new document with pay_interest field
+      await userDocRef.set({
+        pay_interest: 1,
+        last_interest_shown: FieldValue.serverTimestamp(),
+        uid: userId
+      });
+      trackWrite(`recordPayInterest - create new player ${userId}`);
+    }
+    
+    return { 
+      success: true, 
+      message: 'Thank you for showing interest in supporting this project!' 
+    };
+    
+  } catch (error) {
+    console.error('Error recording pay interest:', error);
+    throw new HttpsError('internal', 'Failed to record interest. Please try again.');
+  }
 });
