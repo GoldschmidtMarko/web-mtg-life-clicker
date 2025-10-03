@@ -34,7 +34,7 @@ class InfoPopup {
         
         // Create popup container
         const container = document.createElement('div');
-        container.className = 'bg-white rounded-xl p-8 max-w-lg w-full mx-4 shadow-2xl transform transition-all duration-300 opacity-0 scale-90';
+        container.className = 'bg-white rounded-xl p-3 sm:p-4 md:p-6 lg:p-8 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg w-full mx-3 sm:mx-4 md:mx-6 shadow-2xl transform transition-all duration-300 opacity-0 scale-90 max-h-screen overflow-y-auto';
         
         // Get content based on type
         const content = this.getContentByType(type);
@@ -51,35 +51,35 @@ class InfoPopup {
         switch(type) {
             case 'info':
                 return `
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800">About MTG Life Clicker</h2>
-                        <button id="close-info-popup" class="text-gray-500 hover:text-gray-700 text-3xl font-bold leading-none">&times;</button>
+                    <div class="flex items-center justify-between mb-4 sm:mb-6">
+                        <h2 class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">About MTG Life Clicker</h2>
+                        <button id="close-info-popup" class="text-gray-500 hover:text-gray-700 text-2xl sm:text-3xl font-bold leading-none">&times;</button>
                     </div>
-                    <div class="text-gray-600 space-y-4">
+                    <div class="text-sm sm:text-base text-gray-600 space-y-3 sm:space-y-4">
                         <p>Welcome to MTG Life Clicker, your digital companion for Magic: The Gathering games!</p>
                         <p>This application helps you track life totals and manage multiplayer sessions with ease. Create lobbies, invite friends, and keep track of everyone's life points in real-time.</p>
                         <p>Features include secure Google authentication and real-time synchronization.</p>
                         <p>Each player can independently adjust their life total, ensuring accurate tracking throughout your game.</p>
                         <p>Perfect for Commander, Standard, and any other MTG format where life tracking is essential.</p>
                         <p>You have problems, suggestions or want to contact me? Send me an email at:</p>
-                        <p class="text-center bg-blue-50 border-2 border-blue-300 rounded-lg p-3 mt-4">
-                            <a href="mailto:mtglifeclicker@gmail.com" class="text-blue-600 hover:text-blue-800 font-semibold text-lg underline decoration-2 hover:decoration-blue-800 transition-colors duration-200">
+                        <p class="text-center bg-blue-50 border-2 border-blue-300 rounded-lg p-2 sm:p-3 mt-4">
+                            <a href="mailto:mtglifeclicker@gmail.com" class="text-blue-600 hover:text-blue-800 font-semibold text-base sm:text-lg underline decoration-2 hover:decoration-blue-800 transition-colors duration-200">
                                 mtglifeclicker@gmail.com
                             </a>
                         </p>
                     </div>
-                    <div class="mt-8 flex justify-end">
-                        <button id="confirm-close-popup" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200">Got it!</button>
+                    <div class="mt-6 sm:mt-8 flex justify-end">
+                        <button id="confirm-close-popup" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200">Got it!</button>
                     </div>
                 `;
             case 'help':
                 return `
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800">Important Performance Notice</h2>
-                        <button id="close-info-popup" class="text-gray-500 hover:text-gray-700 text-3xl font-bold leading-none">&times;</button>
+                    <div class="flex items-center justify-between mb-4 sm:mb-6">
+                        <h2 class="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">Important Performance Notice</h2>
+                        <button id="close-info-popup" class="text-gray-500 hover:text-gray-700 text-2xl sm:text-3xl font-bold leading-none">&times;</button>
                     </div>
-                    <div class="text-gray-600 space-y-4">
-                        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded">
+                    <div class="text-sm sm:text-base text-gray-600 space-y-3 sm:space-y-4">
+                        <div class="bg-amber-50 border-l-4 border-amber-400 p-3 sm:p-4 rounded">
                             <div class="flex">
                                 <div class="flex-shrink-0">
                                     <i class="fas fa-exclamation-triangle text-amber-400"></i>
@@ -127,8 +127,8 @@ class InfoPopup {
                             </div>
                         </div>
                     </div>
-                    <div class="mt-8 flex justify-end">
-                        <button id="confirm-close-popup" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200">I Understand</button>
+                    <div class="mt-6 sm:mt-8 flex justify-end">
+                        <button id="confirm-close-popup" class="bg-amber-600 hover:bg-amber-700 text-white px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200">I Understand</button>
                     </div>
                 `;
             default:
@@ -261,7 +261,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const infoButton = document.createElement('button');
     infoButton.id = 'info-button';
     infoButton.className = 'fixed bottom-4 left-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 z-40';
-    infoButton.innerHTML = '<i class="fas fa-info text-lg"></i>';
+    infoButton.style.cssText = 'text-align: center; line-height: 48px;';
+    infoButton.innerHTML = '<i class="fas fa-info text-lg" style="display: inline-block; vertical-align: middle; line-height: normal;"></i>';
     infoButton.onclick = openInfoPopup;
     infoButton.title = 'About';
     
@@ -269,7 +270,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const helpButton = document.createElement('button');
     helpButton.id = 'help-button';
     helpButton.className = 'fixed bottom-4 left-20 bg-amber-600 hover:bg-amber-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 z-40';
-    helpButton.innerHTML = '<i class="fas fa-clock text-lg"></i>';
+    helpButton.style.cssText = 'text-align: center; line-height: 48px;';
+    helpButton.innerHTML = '<i class="fas fa-clock text-lg" style="display: inline-block; vertical-align: middle; line-height: normal;"></i>';
     helpButton.onclick = openHelpPopup;
     helpButton.title = 'Performance Notice';
     
