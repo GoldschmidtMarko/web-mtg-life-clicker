@@ -13,6 +13,15 @@ const firestore = firebase.firestore();
 
 // Connect to emulators when running locally
 if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    // Suppress Firebase emulator warnings
+    const originalWarn = console.warn;
+    console.warn = function(...args) {
+        if (args[0] && args[0].includes && args[0].includes('emulator')) {
+            return; // Suppress emulator warnings
+        }
+        return originalWarn.apply(console, args);
+    };
+    
     functions.useEmulator('localhost', 5001);
     auth.useEmulator('http://localhost:9099');
     firestore.useEmulator('localhost', 8080);

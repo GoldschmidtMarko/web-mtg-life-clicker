@@ -4,16 +4,164 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
+    /* Use dynamic viewport height that adjusts to browser UI */
+    min-height: 100dvh; /* Dynamic viewport height */
+    min-height: 100vh; /* Fallback for older browsers */
+    min-height: calc(var(--vh, 1vh) * 100); /* JS-calculated height fallback */
     background-color: #f0f0f0;
     margin: 0;
     overflow-x: hidden; /* Prevent horizontal scrolling */
     font-size: clamp(14px, 2.5vw, 20px); /* Responsive base font size */
 }
 
+/* Dynamic viewport height classes */
+.min-h-screen-dynamic {
+    min-height: 100dvh !important; /* Dynamic viewport height */
+    min-height: 100vh !important; /* Fallback for older browsers */
+    min-height: calc(var(--vh, 1vh) * 100) !important; /* JS-calculated height fallback */
+}
+
+/* Mobile viewport and layout fixes */
+@media screen and (max-width: 768px) {
+    .min-h-screen-dynamic {
+        min-height: 100vh !important;
+        height: auto !important; /* Allow natural height instead of forcing exact height */
+        justify-content: flex-start !important;
+        padding: 1rem !important; /* Simplified padding */
+    }
+    
+    body {
+        min-height: 100vh !important;
+        height: auto !important; /* Allow natural height */
+        position: relative !important;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+    
+    html {
+        height: 100%;
+        overflow-x: hidden;
+    }
+    
+    /* Ensure proper box sizing */
+    * {
+        box-sizing: border-box;
+    }
+    
+    /* Fix container positioning */
+    #home-view {
+        width: 100% !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        padding: 1rem !important;
+        margin: 0 !important;
+    }
+}
+
+/* Extra small screens (400px and below) */
+@media screen and (max-width: 400px) {
+    #home-view {
+        padding: 0.5rem !important;
+    }
+    
+    /* Override Tailwind max-width constraints for the main card */
+    .bg-white.rounded-2xl.shadow-xl {
+        max-width: none !important;
+        width: calc(100vw - 1rem) !important;
+        padding: 1rem !important;
+        margin: 0.25rem auto !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Ensure buttons don't overflow */
+    #create-lobby-btn, #join-lobby-btn {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem !important;
+        margin: 0.25rem 0 !important;
+        box-sizing: border-box !important;
+    }
+    
+    #sign-in-button, #logout-button {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.875rem !important;
+        margin: 0.25rem 0 !important;
+        max-width: calc(100vw - 1rem) !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Scale down input fields */
+    #remote-player-name-input, #lobby-code-input {
+        padding: 0.5rem !important;
+        font-size: 1rem !important;
+        margin: 0.25rem 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Scale down title */
+    h1 {
+        font-size: 2rem !important;
+        margin-bottom: 1rem !important;
+        padding: 0 0.5rem !important;
+        text-align: center !important;
+    }
+    
+    h2 {
+        font-size: 1.25rem !important;
+        padding: 0 0.5rem !important;
+        text-align: center !important;
+    }
+    
+    /* Ensure icons scale appropriately */
+    svg {
+        width: 1.25rem !important;
+        height: 1.25rem !important;
+    }
+    
+    /* Fix any flex gap issues */
+    .space-x-1\.5 > * + *, .space-x-2 > * + * {
+        margin-left: 0.5rem !important;
+    }
+    
+    .space-y-3 > * + *, .space-y-4 > * + * {
+        margin-top: 0.5rem !important;
+    }
+}
+
+/* Small screens (401px to 600px) */
+@media screen and (min-width: 401px) and (max-width: 600px) {
+    /* Override Tailwind max-width constraints for better fit */
+    .bg-white.rounded-2xl.shadow-xl {
+        max-width: calc(100vw - 2rem) !important;
+        width: 100% !important;
+        margin: 1rem auto !important;
+        box-sizing: border-box !important;
+    }
+    
+    /* Ensure proper button sizing */
+    #create-lobby-btn, #join-lobby-btn {
+        font-size: clamp(1rem, 2.5vw, 1.5rem) !important;
+        padding: clamp(0.75rem, 2vw, 1rem) !important;
+    }
+    
+    #sign-in-button, #logout-button {
+        font-size: clamp(0.875rem, 2vw, 1.125rem) !important;
+        padding: clamp(0.5rem, 1.5vw, 0.75rem) clamp(1rem, 2.5vw, 1.5rem) !important;
+    }
+}
+
 /* Responsive scaling for the main container */
 #home-view {
     font-size: clamp(14px, 2.5vw, 20px);
+    /* Simplified padding without safe area insets */
+    padding: 1rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* Scale main title with viewport */
@@ -62,9 +210,10 @@ svg {
 
 /* Scale the main card container */
 .main-card {
-    width: clamp(300px, 90vw, 600px);
+    width: clamp(280px, 90vw, 600px); /* Reduced min-width for better mobile fit */
     padding: clamp(1rem, 4vw, 3rem);
-    margin: clamp(1rem, 3vw, 2rem);
+    margin: clamp(0.5rem, 2vw, 2rem); /* Reduced margin for better fit */
+    box-sizing: border-box;
 }
 
 /* Responsive footer */
@@ -132,3 +281,26 @@ footer {
     transform: translate(-50%, -50%);
     max-width: 500px; /* Adjust the max-width as needed */
 }
+/* Additional mobile-specific enhancements */
+.mobile-device {
+    /* Prevent zoom on input focus */
+    -webkit-text-size-adjust: 100%;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.mobile-device input {
+    /* Allow selection on inputs */
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
+.firebase-emulator-warning {
+    display: none;
+}
+

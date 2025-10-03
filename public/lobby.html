@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <title>Lobby - MTG Life Clicker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -23,15 +23,14 @@
     <script src="js/settingsModalScript.js" type="module"></script>
     <script src="js/diceAnimation.js" type="module"></script>
     <script src="js/commanderModalScript.js" type="module"></script>
-    <script src="js/infoPopup.js" type="module"></script>
 
     <!-- Styles -->
 
 </head>
 
-<body class="bg-gradient-to-br from-purple-600 to-indigo-800 text-white min-h-screen">
+<body class="bg-gradient-to-br from-purple-600 to-indigo-800 text-white" style="background-attachment: fixed; height: 100vh; overflow: hidden;">
 
-    <div id="lobby-container" class="flex flex-col p-6 space-y-6 w-full">
+    <div id="lobby-container" class="flex flex-col p-4 space-y-4 w-full h-full">
 
         <!-- Top Section -->
         <div class="flex flex-col md:flex-row md:gap-x-4 w-full">
@@ -76,17 +75,17 @@
             </aside>
 
             <!-- Right Panel -->
-            <div class="flex flex-col w-full md:w-3/4 p-4 flex-1">
+            <div class="flex flex-col w-full md:w-3/4 p-2 flex-1 min-h-0">
 
-                <div id="page-label" class="text-center text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4"></div>
+                <div id="page-label" class="text-center text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 flex-shrink-0"></div>
 
                 <!-- Scrollable Player Grid -->
-                <div id="player-grid" class="grid grid-cols-2 gap-4 grow overflow-y-auto">
+                <div id="player-grid" class="grid grid-cols-2 gap-4 flex-1 overflow-y-auto min-h-0">
                     <!-- Players added dynamically -->
                 </div>
 
                 <!-- Fixed Buttons at Bottom -->
-                <div id="bottom-controls" class="flex flex-col items-center mt-4 space-y-4 shrink-0 pb-6">
+                <div id="bottom-controls" class="flex flex-col items-center mt-2 space-y-2 flex-shrink-0 pb-2">
                     <!-- Control current visible page -->
                     <div class="flex items-center justify-center space-x-4">
                         <button id="prev-page" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-md font-semibold text-white text-2xl"><i class="fas fa-arrow-left"></i></button>

@@ -1,3 +1,28 @@
+/* Dynamic viewport height for mobile compatibility */
+.min-h-screen-dynamic {
+    min-height: 100dvh; /* Dynamic viewport height */
+    min-height: 100vh; /* Fallback for older browsers */
+    min-height: calc(var(--vh, 1vh) * 100); /* JS-calculated height fallback */
+}
+
+/* Ensure body fills viewport exactly with no overflow */
+body {
+    height: 100vh;
+    overflow: hidden;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+#lobby-container {
+    height: 100vh; /* Exact viewport height */
+    padding: 1rem; /* Reduced padding */
+    box-sizing: border-box; /* Include padding in height calculation */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Prevent container overflow */
+}
+
 /* Page label scaling */
 #page-label {
     font-size: clamp(1.25rem, 4vw, 2.5rem);
@@ -38,6 +63,10 @@
     padding: 10px;
     position: relative;
     overflow: hidden; /* Ensure overlay stays inside */
+    /* Ensure minimum height for mobile */
+    min-height: 80px;
+    /* Allow frames to scale higher - remove restrictive max-height */
+    max-height: none;
 }
 
 .settings-button,
@@ -163,4 +192,112 @@
     background: rgba(255, 255, 255, 0.205); /* White background for contrast */
     border-color: rgba(37, 99, 235, 0.7); /* Slightly less transparent on hover */
     border-style: dashed;
+}
+
+/* Mobile-specific adjustments for lobby */
+@media screen and (max-width: 768px) and (max-height: 700px) {
+    /* Adjust for mobile browsers with visible UI */
+    .min-h-screen-dynamic {
+        min-height: 100svh; /* Small viewport height - excludes browser UI */
+    }
+    
+    #lobby-container {
+        min-height: 100svh;
+        padding: 1rem;
+        gap: 1rem;
+    }
+    
+    /* Reduce spacing and sizing on cramped mobile screens */
+    #left-panel {
+        margin-bottom: 1rem;
+    }
+    
+    #player-grid {
+        gap: 0.75rem;
+        /* Use available viewport height more efficiently */
+        max-height: calc(100svh - 200px); /* Reserve space for controls */
+        overflow-y: auto; /* Allow internal scrolling */
+    }
+    
+    .player-frame {
+        font-size: 3.5vh; /* Slightly smaller font on mobile */
+        min-height: 80px; /* Smaller minimum height for mobile */
+        max-height: 300px; /* Increased max height for mobile - allow better scaling */
+    }
+    
+    #bottom-controls {
+        margin-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    
+    /* Make buttons more compact */
+    #bottom-controls .flex.gap-4 {
+        gap: 0.75rem;
+    }
+    
+    #bottom-controls button {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Additional constraint for player grid on all screen sizes */
+#player-grid {
+    max-height: calc(100vh - 240px); /* Ensure grid doesn't overflow viewport */
+    overflow-y: auto; /* Allow internal scrolling when needed */
+}
+
+/* Landscape mobile orientation adjustments */
+@media screen and (max-width: 768px) and (orientation: landscape) and (max-height: 500px) {
+    #lobby-container {
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+    
+    #page-label {
+        font-size: clamp(1rem, 3vw, 1.5rem);
+        margin-bottom: 0.5rem;
+    }
+    
+    #player-grid {
+        gap: 0.5rem;
+    }
+    
+    #bottom-controls {
+        margin-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    /* Make the layout more horizontal-friendly */
+    .flex.flex-col.md\\:flex-row {
+        flex-direction: row;
+    }
+    
+    #left-panel {
+        width: auto;
+        min-width: 120px;
+    }
+}
+
+/* Additional mobile enhancements for lobby */
+@media (hover: none) and (pointer: coarse) {
+    /* Enhance touch targets for mobile */
+    .player-frame button,
+    #settings-button,
+    #exit-lobby-button,
+    .overlay-square {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* Make player frame interactions more touch-friendly */
+    .player-frame-overlay .overlay-square {
+        min-height: 60px; /* Larger touch targets for game interactions */
+    }
+    
+    /* Improve modal touch interactions */
+    .modal-content button {
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+    }
 }
