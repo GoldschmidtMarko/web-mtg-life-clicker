@@ -364,7 +364,7 @@ exports.updatePlayer = onCall({
   }
 
   // Check for debouncing on frequently updated fields
-  const frequentFields = ['damageToApply', 'infectToApply', 'life'];
+  const frequentFields = ['lifeToApply', 'infectToApply', 'life'];
   for (const field of Object.keys(updates)) {
     if (frequentFields.includes(field)) {
       const shouldDebounce = await shouldDebounceUpdate(userId, playerId, field, 50); // 50ms minimum interval
@@ -482,7 +482,7 @@ exports.applyCombatDamage = onCall({
         }
 
         let commanderDamages = playerData.commanderDamages || [];
-        let totalCommanderDamageToApply = 0;
+        let totalCommanderlifeToApply = 0;
 
         // Validate commanderDamages structure
         if (!Array.isArray(commanderDamages)) {
@@ -491,30 +491,30 @@ exports.applyCombatDamage = onCall({
         }
 
         commanderDamages = commanderDamages.map((cd) => {
-          if (typeof cd.damageToApply !== 'number' || typeof cd.damage !== 'number') {
+          if (typeof cd.lifeToApply !== 'number' || typeof cd.damage !== 'number') {
             console.error(`Invalid commander damage data for player ${playerId}:`, cd);
             return cd;
           }
-          totalCommanderDamageToApply += cd.damageToApply;
+          totalCommanderlifeToApply += cd.lifeToApply;
           return {
             ...cd,
-            damage: cd.damage + cd.damageToApply,
-            damageToApply: 0,
+            damage: cd.damage + cd.lifeToApply,
+            lifeToApply: 0,
           };
         });
 
-        const damageToApply = typeof playerData.damageToApply === 'number' ? playerData.damageToApply : 0;
+        const lifeToApply = typeof playerData.lifeToApply === 'number' ? playerData.lifeToApply : 0;
         const infect = typeof playerData.infect === 'number' ? playerData.infect : 0;
         const infectToApply = typeof playerData.infectToApply === 'number' ? playerData.infectToApply : 0;
 
-        const newLife = playerData.life - totalCommanderDamageToApply + damageToApply;
+        const newLife = playerData.life - totalCommanderlifeToApply + lifeToApply;
         const newInfect = infect + infectToApply;
 
         const updateData = {
           commanderDamages,
           life: newLife,
           infect: newInfect,
-          damageToApply: 0,
+          lifeToApply: 0,
           infectToApply: 0,
         };
 

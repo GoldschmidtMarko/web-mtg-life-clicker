@@ -2,11 +2,11 @@
 
 // Define a class for the Player
 class Player {
-  constructor(id, name, life, damageToApply, infect, infectToApply, backgroundColor, fontColor) { // Add damageToApply and infect here
+  constructor(id, name, life, lifeToApply, infect, infectToApply, backgroundColor, fontColor) { // Add lifeToApply and infect here
     this.id = id; // Player's unique ID (e.g., Firebase Auth UID).
     this.name = name; // Player's display name.
     this.life = life; // Player's life total.
-    this.damageToApply = damageToApply; // Player's damage to apply
+    this.lifeToApply = lifeToApply; // Player's damage to apply
     this.infect = infect; // Player's infect status
     this.backgroundColor = backgroundColor;
     this.fontColor = fontColor;
@@ -20,7 +20,7 @@ class Player {
       id: this.id,
       name: this.name,
       life: this.life,
-      damageToApply: this.damageToApply,
+      lifeToApply: this.lifeToApply,
       infect: this.infect,
       infectToApply: this.infectToApply,
       backgroundColor: this.backgroundColor,
@@ -31,18 +31,18 @@ class Player {
 }
 
 class CommanderDamage{
-  constructor(playerName, commanderName, damage, damageToApply){
+  constructor(playerName, commanderName, damage, lifeToApply){
     this.playerName = playerName;
     this.commanderName = commanderName;
     this.damage = damage;
-    this.damageToApply = damageToApply;
+    this.lifeToApply = lifeToApply;
   }
   toFirestoreObject() {
     return {
       playerName: this.playerName,
       commanderName: this.commanderName,
       damage: this.damage,
-      damageToApply: this.damageToApply
+      lifeToApply: this.lifeToApply
     };
   }
 }

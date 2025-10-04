@@ -58,20 +58,29 @@ window.addEventListener('keydown', (event) => {
 const saveSettingsButton = document.getElementById('saveSettings');
 if (saveSettingsButton) {
     saveSettingsButton.addEventListener('click', async () => {
-        const newUsername = document.getElementById('username').value; // Get the new username
-        const backgroundColor = document.getElementById('bgColor').value;
-        const fontColor = document.getElementById('fontColor').value;
+        // Store original button state
+        const originalText = saveSettingsButton.textContent;
+        const originalDisabled = saveSettingsButton.disabled;
+        
+        try {
+            // Set loading state
+            saveSettingsButton.disabled = true;
+            saveSettingsButton.textContent = 'Saving...';
+            saveSettingsButton.style.opacity = '0.6';
+            saveSettingsButton.style.cursor = 'not-allowed';
+            
+            const newUsername = document.getElementById('username').value; // Get the new username
+            const backgroundColor = document.getElementById('bgColor').value;
+            const fontColor = document.getElementById('fontColor').value;
 
-        // Use currentUserId to update the user's settings in Firestore
+            // Use currentUserId to update the user's settings in Firestore
+            if (currentUserId) {
+                // Assuming you have a way to get the current lobby ID
+                // For example, you might pass it when opening the modal, or retrieve it from the URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const lobbyId = urlParams.get('lobbyId');
 
-        if (currentUserId) {
-            // Assuming you have a way to get the current lobby ID
-            // For example, you might pass it when opening the modal, or retrieve it from the URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const lobbyId = urlParams.get('lobbyId');
-
-            if (lobbyId) {
-                try {
+                if (lobbyId) {
                     await updatePlayerSettings({
                         lobbyId: lobbyId,
                         playerId: currentUserId,
@@ -81,12 +90,39 @@ if (saveSettingsButton) {
                             fontColor: fontColor,
                         }
                     });
-                } catch (error) {
-                    console.error("Error updating player settings:", error);
+                    
+                    // Restore original button state on success
+                    saveSettingsButton.disabled = originalDisabled;
+                    saveSettingsButton.textContent = originalText;
+                    saveSettingsButton.style.opacity = '';
+                    saveSettingsButton.style.cursor = '';
+                } else { 
+                    console.error("Lobby ID not found. Cannot save settings."); 
+                    
+                    // Restore original button state on error
+                    saveSettingsButton.disabled = originalDisabled;
+                    saveSettingsButton.textContent = originalText;
+                    saveSettingsButton.style.opacity = '';
+                    saveSettingsButton.style.cursor = '';
                 }
-
-            } else { console.error("Lobby ID not found. Cannot save settings."); }
-        } else { console.warn("No user ID available. Cannot save settings."); }
+            } else { 
+                console.warn("No user ID available. Cannot save settings."); 
+                
+                // Restore original button state on error
+                saveSettingsButton.disabled = originalDisabled;
+                saveSettingsButton.textContent = originalText;
+                saveSettingsButton.style.opacity = '';
+                saveSettingsButton.style.cursor = '';
+            }
+        } catch (error) {
+            console.error("Error updating player settings:", error);
+            
+            // Restore original button state on error
+            saveSettingsButton.disabled = originalDisabled;
+            saveSettingsButton.textContent = originalText;
+            saveSettingsButton.style.opacity = '';
+            saveSettingsButton.style.cursor = '';
+        }
 
         closeSettingsModal();
     });

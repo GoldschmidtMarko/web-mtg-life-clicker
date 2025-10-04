@@ -70,7 +70,7 @@ export function openCommanderModal(lobbyId, playerDocument, snapshot) {
             return;
         }
         const commanderDamage = getCommanderDamageFromName(commanderDamages, otherPlayerName);
-        const damageToApply = commanderDamage ? commanderDamage.damageToApply : 0;
+        const lifeToApply = commanderDamage ? commanderDamage.lifeToApply : 0;
         const damage = commanderDamage ? commanderDamage.damage : 0;
         const commanderName = commanderDamage ? commanderDamage.commanderName : otherPlayerName;
 
@@ -83,12 +83,12 @@ export function openCommanderModal(lobbyId, playerDocument, snapshot) {
         playerFrame.style.height = `${playerFrameHeight}px`;
 
         // Create and append a div for each opponent's damage within the playerFrame
-        if (damageToApply === 0) {
+        if (lifeToApply === 0) {
             playerFrame.textContent = `${commanderName}: ${damage}`;
-        } else if (damageToApply > 0) {
-            playerFrame.textContent = `${commanderName}: ${damage} (+${damageToApply})`;
+        } else if (lifeToApply > 0) {
+            playerFrame.textContent = `${commanderName}: ${damage} (+${lifeToApply})`;
         } else {
-            playerFrame.textContent = `${commanderName}: ${damage} (${damageToApply})`;
+            playerFrame.textContent = `${commanderName}: ${damage} (${lifeToApply})`;
         }
         // Add event listeners for left and right clicks
         playerFrame.addEventListener('click', (event) => {
@@ -110,7 +110,16 @@ async function onClickCommanderDamageName(lobbyId, event, playerDocumentId, othe
     const buttonWidth = playerFrame.offsetWidth;
     const clickX = event.clientX - playerFrame.getBoundingClientRect().left;
 
+    // Store original button state for loading feedback
+    const originalText = playerFrame.textContent;
+    const originalDisabled = playerFrame.disabled;
+    
     try {
+        // Set loading state
+        playerFrame.disabled = true;
+        playerFrame.style.opacity = '0.6';
+        playerFrame.style.cursor = 'not-allowed';
+        
         const playerDocument = await getPlayer(lobbyId, playerDocumentId);
         const playerData = playerDocument.data();
         let commanderDamages = playerData.commanderDamages || [];
@@ -120,14 +129,14 @@ async function onClickCommanderDamageName(lobbyId, event, playerDocumentId, othe
 
         if (clickX < buttonWidth / 2) {
             if (commanderDamage) {
-                commanderDamage.damageToApply -= 1;
+                commanderDamage.lifeToApply -= 1;
             } else {
                 commanderDamage = new CommanderDamage(playerName, otherPlayerName, 0, -1);
                 commanderDamages.push(commanderDamage.toFirestoreObject());
             }
         } else {
             if (commanderDamage) {
-                commanderDamage.damageToApply += 1;
+                commanderDamage.lifeToApply += 1;
             } else {
                 commanderDamage = new CommanderDamage(playerName, otherPlayerName, 0, 1);
                 commanderDamages.push(commanderDamage.toFirestoreObject());
@@ -145,6 +154,12 @@ async function onClickCommanderDamageName(lobbyId, event, playerDocumentId, othe
 
     } catch (error) {
         console.error(`Error updating player attribute for ${playerDocumentId}:`, error);
+        
+        // Restore original state on error
+        playerFrame.disabled = originalDisabled;
+        playerFrame.textContent = originalText;
+        playerFrame.style.opacity = '';
+        playerFrame.style.cursor = '';
     }
 }
 

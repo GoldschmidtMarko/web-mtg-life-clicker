@@ -204,27 +204,44 @@ if (createLobbyBtn) {
             return;
         }
         
-        // Cleanup old lobbies in the background (non-blocking)
-        performLobbyCleanup();
+        // Store original button state
+        const originalText = createLobbyBtn.textContent;
+        const originalDisabled = createLobbyBtn.disabled;
         
-        const playerName = currentUser.displayName.split(" ")[0] || "Player"
-        const playerClass = new Player(
-            currentUser.uid,
-            playerName,
-            40,
-            0,
-            0,
-            0,
-            "#FFFFFF",
-            "#000000"
-        )
         try {
+            // Set loading state
+            createLobbyBtn.disabled = true;
+            createLobbyBtn.textContent = 'Creating Lobby...';
+            createLobbyBtn.style.opacity = '0.6';
+            createLobbyBtn.style.cursor = 'not-allowed';
+            
+            // Cleanup old lobbies in the background (non-blocking)
+            performLobbyCleanup();
+            
+            const playerName = currentUser.displayName.split(" ")[0] || "Player"
+            const playerClass = new Player(
+                currentUser.uid,
+                playerName,
+                40,
+                0,
+                0,
+                0,
+                "#FFFFFF",
+                "#000000"
+            )
+            
             const result = await createLobby(playerClass.toFirestoreObject());
             const lobbyCode = result.data.lobbyCode;
             window.location.href = 'lobby.html?lobbyId=' + lobbyCode;
         } catch (error) {
             console.error('Error creating lobby:', error);
             showErrorMessage(error);
+            
+            // Restore original button state on error
+            createLobbyBtn.disabled = originalDisabled;
+            createLobbyBtn.textContent = originalText;
+            createLobbyBtn.style.opacity = '';
+            createLobbyBtn.style.cursor = '';
         }
     });
 }
@@ -238,12 +255,23 @@ if (joinLobbyBtn) {
             return;
         }
         
-        // Cleanup old lobbies in the background (non-blocking)
-        performLobbyCleanup();
+        // Store original button state
+        const originalText = joinLobbyBtn.textContent;
+        const originalDisabled = joinLobbyBtn.disabled;
         
-        const playerName = joinLobbyUserName.value || "Player"
-        const lobbyCode = lobbyCodeInput.value;
         try {
+            // Set loading state
+            joinLobbyBtn.disabled = true;
+            joinLobbyBtn.textContent = 'Joining Lobby...';
+            joinLobbyBtn.style.opacity = '0.6';
+            joinLobbyBtn.style.cursor = 'not-allowed';
+            
+            // Cleanup old lobbies in the background (non-blocking)
+            performLobbyCleanup();
+            
+            const playerName = joinLobbyUserName.value || "Player"
+            const lobbyCode = lobbyCodeInput.value;
+            
             const player = new Player(
                 currentUser.uid,
                 playerName,
@@ -261,6 +289,12 @@ if (joinLobbyBtn) {
         } catch (error) {
             console.error('Error joining lobby:', error);
             showErrorMessage(error);
+            
+            // Restore original button state on error
+            joinLobbyBtn.disabled = originalDisabled;
+            joinLobbyBtn.textContent = originalText;
+            joinLobbyBtn.style.opacity = '';
+            joinLobbyBtn.style.cursor = '';
         }
     });
 } 

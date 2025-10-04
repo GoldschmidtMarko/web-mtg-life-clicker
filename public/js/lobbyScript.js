@@ -208,15 +208,15 @@ function populatePlayerGridCommander(snapshot) {
             for (const commanderDamage of commanderDamages) {
                 const commanderName = commanderDamage.commanderName;
                 const damage = commanderDamage.damage
-                const damageToApply = commanderDamage.damageToApply
+                const lifeToApply = commanderDamage.lifeToApply
                 
                 const lifeElement = document.createElement('div');
-                if (damageToApply === 0) {
+                if (lifeToApply === 0) {
                     lifeElement.textContent = `${commanderName}: ${damage}`;
-                } else if (damageToApply > 0) {
-                    lifeElement.textContent = `${commanderName}: ${damage} (+${damageToApply})`;
+                } else if (lifeToApply > 0) {
+                    lifeElement.textContent = `${commanderName}: ${damage} (+${lifeToApply})`;
                 } else {
-                    lifeElement.textContent = `${commanderName}: ${damage} (${damageToApply})`;
+                    lifeElement.textContent = `${commanderName}: ${damage} (${lifeToApply})`;
                 }
                 playerFrame.appendChild(lifeElement);
             }
@@ -230,7 +230,6 @@ function populatePlayerGridCommander(snapshot) {
 
         playerGrid.appendChild(playerFrame);
 
-        createPlayerFrameOverlay(playerFrame);
     });
 }
 
@@ -300,7 +299,39 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, frame
     removeButton.addEventListener('click', (event) => {
         event.stopPropagation();
         showConfirmationModal(`Are you sure you want to remove ${playerName}?`, async () => {
-            await deletePlayer({ lobbyId, playerId: playerDocument.id });
+            // Get confirmation button to show loading state
+            const confirmButton = document.getElementById('confirm-remove-button');
+            if (confirmButton) {
+                const originalText = confirmButton.textContent;
+                const originalDisabled = confirmButton.disabled;
+                
+                try {
+                    // Set loading state
+                    confirmButton.disabled = true;
+                    confirmButton.textContent = 'Removing...';
+                    confirmButton.style.opacity = '0.6';
+                    confirmButton.style.cursor = 'not-allowed';
+                    
+                    await deletePlayer({ lobbyId, playerId: playerDocument.id });
+                    
+                    // Restore original state on success (modal will close anyway)
+                    confirmButton.disabled = originalDisabled;
+                    confirmButton.textContent = originalText;
+                    confirmButton.style.opacity = '';
+                    confirmButton.style.cursor = '';
+                } catch (error) {
+                    console.error('Error deleting player:', error);
+                    
+                    // Restore original state on error
+                    confirmButton.disabled = originalDisabled;
+                    confirmButton.textContent = originalText;
+                    confirmButton.style.opacity = '';
+                    confirmButton.style.cursor = '';
+                }
+            } else {
+                // Fallback if button not found
+                await deletePlayer({ lobbyId, playerId: playerDocument.id });
+            }
         });
     });
 
@@ -335,7 +366,7 @@ function populatePlayerGridDefault(snapshot) {
         const playerData = playerDocument.data();
         const playerName = playerData.name;
         const playerLife = playerData.life;
-        const damageToApply = playerData.damageToApply;
+        const lifeToApply = playerData.lifeToApply;
 
         const playerFrame = document.createElement('button'); // Change div to button
         playerFrame.style.backgroundColor = playerData.backgroundColor;
@@ -348,12 +379,12 @@ function populatePlayerGridDefault(snapshot) {
         nameElement.textContent = `${playerName}`;
         playerFrame.appendChild(nameElement);
         const lifeElement = document.createElement('div');
-        if (damageToApply === 0) {
+        if (lifeToApply === 0) {
             lifeElement.textContent = `Life: ${playerLife}`;
-        } else if (damageToApply > 0) {
-            lifeElement.textContent = `Life: ${playerLife} (+${damageToApply})`;
+        } else if (lifeToApply > 0) {
+            lifeElement.textContent = `Life: ${playerLife} (+${lifeToApply})`;
         } else {
-            lifeElement.textContent = `Life: ${playerLife} (${damageToApply})`;
+            lifeElement.textContent = `Life: ${playerLife} (${lifeToApply})`;
         }
         playerFrame.appendChild(lifeElement);
 
@@ -361,7 +392,7 @@ function populatePlayerGridDefault(snapshot) {
         playerGrid.appendChild(playerFrame);
 
         playerFrame.addEventListener('click', async (event) => {
-            handlePlayerFrameClick(event, lobbyId, playerDocument, "damageToApply");
+            handlePlayerFrameClick(event, lobbyId, playerDocument, "lifeToApply");
         });
 
         createPlayerFrameOverlay(playerFrame);
@@ -413,6 +444,11 @@ async function handlePlayerFrameClick(event, lobbyId, playerDocument, attributeK
     }
 
     try {
+        // Add visual feedback for the click
+        const originalOpacity = playerFrame.style.opacity;
+        playerFrame.style.opacity = '0.7';
+        playerFrame.style.transition = 'opacity 0.1s ease';
+        
         const currentPlayer = playerSnapshot?.docs.find(doc => doc.id === playerDocument.id);
         if (!currentPlayer) return;
         const currentValue = currentPlayer.data()[attributeKey];
@@ -420,8 +456,17 @@ async function handlePlayerFrameClick(event, lobbyId, playerDocument, attributeK
         await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { [attributeKey]: currentValue + delta } });
         // Update lobby last updated timestamp (optional)
         await updateLobbyTimestamp({ lobbyId });
+        
+        // Restore visual state
+        setTimeout(() => {
+            playerFrame.style.opacity = originalOpacity;
+        }, 100);
     } catch (error) {
         console.error(`Error updating player attribute for ${playerDocument.id}:`, error);
+        
+        // Restore visual state on error
+        playerFrame.style.opacity = '';
+        
         // Show user-friendly error message
         if (error.code === 'functions/resource-exhausted') {
             showSpamWarning(error.message || 'Rate limit exceeded. Please slow down.');
@@ -441,37 +486,72 @@ function setupApplyButton(lobbyId) {
     const applyButton = document.getElementById('apply-button');
     if (applyButton) {
         applyButton.addEventListener('click', async () => {
+            // Store original button state
+            const originalText = applyButton.textContent;
+            const originalDisabled = applyButton.disabled;
+            
             try {
+                // Set loading state
+                applyButton.disabled = true;
+                applyButton.textContent = 'Applying...';
+                applyButton.style.opacity = '0.6';
+                applyButton.style.cursor = 'not-allowed';
+                
                 const playersResult = await getPlayers({ lobbyId });
                 
                 // Firebase callable functions return result.data
                 const playersData = playersResult.data || playersResult;
                 
                 if (!playersData || !playersData.players) {
-                    console.error('Invalid players result:', playersData);
+                    console.error('Invalid players result in apply:', playersData);
                     return;
                 }
                 
-                const playersSnapshot = playersData.players;
-                
-                for (const playerDocument of playersSnapshot) {
-                    try {
-                        
-                        if (!playerDocument.id) {
-                            console.error('Player document has no ID:', playerDocument);
-                            continue;
-                        }
-                        
-                        const result = await applyCombatDamage({ lobbyId, playerId: playerDocument.id });
-                    } catch (playerError) {
-                        console.error(`Error processing player ${playerDocument.id}:`, playerError);
-                        console.error('Full error details:', playerError);
+                const players = playersData.players;
+                for (const playerDocument of players) {
+                    // playerDocument here is the raw data object, not a Firestore document
+                    const playerData = playerDocument.data || playerDocument; // Handle both formats
+                    const currentLife = playerData.life || 0;
+                    const lifeToApply = playerData.lifeToApply || 0;
+                    const currentInfect = playerData.infect || 0;
+                    const infectToApply = playerData.infectToApply || 0;
+                    const commanderDamages = playerData.commanderDamages || [];
+                    
+                    var newLife = currentLife + lifeToApply;
+                    var newInfect = currentInfect + infectToApply;
+                    
+                    for (const commanderDamage of commanderDamages) {
+                        commanderDamage.damage += commanderDamage.lifeToApply;
+                        newLife -= commanderDamage.lifeToApply;
+                        commanderDamage.lifeToApply = 0;
                     }
+                    
+                    await updatePlayer({ 
+                        lobbyId, 
+                        playerId: playerDocument.id, 
+                        updates: { 
+                            life: newLife, 
+                            lifeToApply: 0, 
+                            infect: newInfect, 
+                            infectToApply: 0, 
+                            commanderDamages 
+                        } 
+                    });
                 }
                 
-                await updateLobbyTimestamp({ lobbyId }); // Update lobby timestamp after applying damage to all players
+                // Restore original button state on success
+                applyButton.disabled = originalDisabled;
+                applyButton.textContent = originalText;
+                applyButton.style.opacity = '';
+                applyButton.style.cursor = '';
             } catch (error) {
                 console.error('Error in apply button handler:', error);
+                
+                // Restore original button state on error
+                applyButton.disabled = originalDisabled;
+                applyButton.textContent = originalText;
+                applyButton.style.opacity = '';
+                applyButton.style.cursor = '';
             }
         });
     }
@@ -483,7 +563,17 @@ function setupAbortButton(lobbyId) {
 
     if (abortButton) {
         abortButton.addEventListener('click', async () => {
+            // Store original button state
+            const originalText = abortButton.textContent;
+            const originalDisabled = abortButton.disabled;
+            
             try {
+                // Set loading state
+                abortButton.disabled = true;
+                abortButton.textContent = 'Aborting...';
+                abortButton.style.opacity = '0.6';
+                abortButton.style.cursor = 'not-allowed';
+                
                 const playersResult = await getPlayers({ lobbyId });
                 
                 // Firebase callable functions return result.data
@@ -495,11 +585,23 @@ function setupAbortButton(lobbyId) {
                 }
                 
                 const players = playersData.players;
-                players.forEach(async (playerDocument) => {
-                    await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { damageToApply: 0, infectToApply: 0 } });
-                });
+                for (const playerDocument of players) {
+                    await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { lifeToApply: 0, infectToApply: 0 } });
+                }
+                
+                // Restore original button state on success
+                abortButton.disabled = originalDisabled;
+                abortButton.textContent = originalText;
+                abortButton.style.opacity = '';
+                abortButton.style.cursor = '';
             } catch (error) {
                 console.error('Error in abort button handler:', error);
+                
+                // Restore original button state on error
+                abortButton.disabled = originalDisabled;
+                abortButton.textContent = originalText;
+                abortButton.style.opacity = '';
+                abortButton.style.cursor = '';
             }
         });
     }
@@ -512,24 +614,46 @@ function setupAddDummyPlayerButton(lobbyId) {
 
     if (dummyButton) {
         dummyButton.addEventListener('click', async () => {
-            // Generate a unique ID for the dummy player
-            const uniqueId = `dummy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            
-            const player = new Player(
-                uniqueId,  // Use unique ID instead of hardcoded 0
-                randomNames[Math.floor(Math.random() * randomNames.length)],
-                40, // Random life between 1-40
-                0,
-                0,
-                0,
-                "#FFFFFF",
-                "#000000",
-            );
+            // Store original button state
+            const originalText = dummyButton.textContent;
+            const originalDisabled = dummyButton.disabled;
             
             try {
+                // Set loading state
+                dummyButton.disabled = true;
+                dummyButton.textContent = 'Adding Player...';
+                dummyButton.style.opacity = '0.6';
+                dummyButton.style.cursor = 'not-allowed';
+                
+                // Generate a unique ID for the dummy player
+                const uniqueId = `dummy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                
+                const player = new Player(
+                    uniqueId,  // Use unique ID instead of hardcoded 0
+                    randomNames[Math.floor(Math.random() * randomNames.length)],
+                    40, // Random life between 1-40
+                    0,
+                    0,
+                    0,
+                    "#FFFFFF",
+                    "#000000",
+                );
+                
                 await addPlayer({ lobbyId, player: player.toFirestoreObject() });
+                
+                // Restore original button state on success
+                dummyButton.disabled = originalDisabled;
+                dummyButton.textContent = originalText;
+                dummyButton.style.opacity = '';
+                dummyButton.style.cursor = '';
             } catch (error) {
                 console.error('Error adding dummy player:', error);
+                
+                // Restore original button state on error
+                dummyButton.disabled = originalDisabled;
+                dummyButton.textContent = originalText;
+                dummyButton.style.opacity = '';
+                dummyButton.style.cursor = '';
             }
         });
     }
@@ -542,15 +666,33 @@ function setupTimerButton(lobbyId) {
     const timerInput = document.getElementById('timer-duration');
     if (timerButton && timerInput) {
         timerButton.addEventListener('click', async () => {
-            const duration = parseInt(timerInput.value, 10);
-            if (isNaN(duration) || duration <= 0) {
-                alert('Please enter a valid timer duration (minutes).');
-                return;
-            }
+            // Store original button state
+            const originalText = timerButton.textContent;
+            const originalDisabled = timerButton.disabled;
+            
             try {
+                // Set loading state
+                timerButton.disabled = true;
+                timerButton.textContent = 'Starting Timer...';
+                timerButton.style.opacity = '0.6';
+                timerButton.style.cursor = 'not-allowed';
+                
+                const duration = parseInt(timerInput.value) || 5;
                 await startTimer({ lobbyId, duration });
+                
+                // Restore original button state on success
+                timerButton.disabled = originalDisabled;
+                timerButton.textContent = originalText;
+                timerButton.style.opacity = '';
+                timerButton.style.cursor = '';
             } catch (error) {
                 console.error('Error starting timer:', error);
+                
+                // Restore original button state on error
+                timerButton.disabled = originalDisabled;
+                timerButton.textContent = originalText;
+                timerButton.style.opacity = '';
+                timerButton.style.cursor = '';
             }
         });
     }
@@ -682,41 +824,60 @@ function setupResetLifeButton(lobbyId) {
 
     if (resetLifeButton && resetLifeInput) {
         resetLifeButton.addEventListener('click', async () => {
-            const lifeToSet = parseInt(resetLifeInput.value, 10); // Parse the input value as an integer
-
-            // Basic validation: ensure lifeToSet is a valid number
-            if (isNaN(lifeToSet)) {
-                console.error("Invalid life value entered for reset.");
-                return; // Stop if the input is not a number
-            }
-
+            // Store original button state
+            const originalText = resetLifeButton.textContent;
+            const originalDisabled = resetLifeButton.disabled;
+            
             try {
-                const playersResult = await getPlayers({ lobbyId });
+                // Set loading state
+                resetLifeButton.disabled = true;
+                resetLifeButton.textContent = 'Resetting...';
+                resetLifeButton.style.opacity = '0.6';
+                resetLifeButton.style.cursor = 'not-allowed';
                 
-                // Firebase callable functions return result.data
+                const newLifeValue = parseInt(resetLifeInput.value);
+                
+                if (isNaN(newLifeValue) || newLifeValue <= 0) {
+                    alert('Please enter a valid positive number for life.');
+                    return;
+                }
+                
+                const playersResult = await getPlayers({ lobbyId });
                 const playersData = playersResult.data || playersResult;
                 
                 if (!playersData || !playersData.players) {
-                    console.error('Invalid players result in reset:', playersData);
+                    console.error('Invalid players result in reset life:', playersData);
                     return;
                 }
                 
                 const players = playersData.players;
-                players.forEach(async (playerDocument) => {
-                await updatePlayer({ 
-                    lobbyId, 
-                    playerId: playerDocument.id, 
-                    updates: {
-                        life: lifeToSet,
-                        damageToApply: 0,
-                        infect: 0,
-                        infectToApply: 0,
-                        commanderDamages: []
-                    }
-                });
-            });
+                for (const playerDocument of players) {
+                    await updatePlayer({
+                        lobbyId,
+                        playerId: playerDocument.id,
+                        updates: {
+                            life: newLifeValue,
+                            lifeToApply: 0,
+                            infect: 0,
+                            infectToApply: 0,
+                            commanderDamages: []
+                        }
+                    });
+                }
+                
+                // Restore original button state on success
+                resetLifeButton.disabled = originalDisabled;
+                resetLifeButton.textContent = originalText;
+                resetLifeButton.style.opacity = '';
+                resetLifeButton.style.cursor = '';
             } catch (error) {
-                console.error('Error in reset life button handler:', error);
+                console.error('Error resetting life:', error);
+                
+                // Restore original button state on error
+                resetLifeButton.disabled = originalDisabled;
+                resetLifeButton.textContent = originalText;
+                resetLifeButton.style.opacity = '';
+                resetLifeButton.style.cursor = '';
             }
         });
     }
