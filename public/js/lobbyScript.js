@@ -198,6 +198,9 @@ function populatePlayerGridCommander(snapshot) {
         playerFrame.style.color = playerData.fontColor;
         playerFrame.classList.add('player-frame');
         playerFrame.style.height = `${playerFrameHeight}px`;
+        
+                const fontSize = playerFrameHeight * 0.15;
+        playerFrame.style.fontSize = `${fontSize}px`;
 
         
         const nameElement = document.createElement('div');
@@ -223,6 +226,8 @@ function populatePlayerGridCommander(snapshot) {
         }
 
         addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, playerFrameHeight)
+
+        createPlayerFrameOverlayWithoutButtons(playerFrame)
 
         playerFrame.addEventListener('click', async () => {
             openCommanderModal(lobbyId, playerDocument, snapshot);
@@ -253,6 +258,9 @@ function populatePlayerGridInfect(snapshot) {
         playerFrame.style.color = playerData.fontColor;
         playerFrame.classList.add('player-frame');
         playerFrame.style.height = `${playerFrameHeight}px`;
+        
+        const fontSize = playerFrameHeight * 0.15;
+        playerFrame.style.fontSize = `${fontSize}px`;
 
         const nameElement = document.createElement('div');
         nameElement.textContent = `${playerName}`;
@@ -373,6 +381,9 @@ function populatePlayerGridDefault(snapshot) {
         playerFrame.style.color = playerData.fontColor;
         playerFrame.classList.add('player-frame');
         playerFrame.style.height = `${playerFrameHeight}px`;
+        
+        const fontSize = playerFrameHeight * 0.15;
+        playerFrame.style.fontSize = `${fontSize}px`;
 
 
         const nameElement = document.createElement('div');
@@ -881,6 +892,20 @@ function setupResetLifeButton(lobbyId) {
             }
         });
     }
+}
+
+function createPlayerFrameOverlayWithoutButtons(playerFrame) {
+    // Create overlay container
+    const overlay = document.createElement('div');
+    overlay.className = 'player-frame-overlay';
+    // Create 4 regions as squares
+    for (let i = 0; i < 4; i++) {
+        const div = document.createElement('div');
+        div.className = 'overlay-square';
+        overlay.appendChild(div);
+    };
+    
+    playerFrame.appendChild(overlay);
 }
 
 function createPlayerFrameOverlay(playerFrame) {

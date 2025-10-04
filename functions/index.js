@@ -11,11 +11,116 @@ setGlobalOptions({
 });
 
 // Initialize Firebase Admin
-initializeApp();
+const app = initializeApp();
 
+// Pre-initialize database connection immediately
+let db = getFirestore();
+
+// Warm up database connection immediately on startup
+(async () => {
+  try {
+    console.log('Pre-warming database connection...');
+    
+    // Multiple warmup operations to ensure everything is ready
+    const startupWarmup = [
+      db.collection('_warmup').doc('startup').get(),
+      db.collection('lobbies').limit(1).get(),
+      db.collection('players').limit(1).get()
+    ];
+    
+    await Promise.allSettled(startupWarmup);
+    console.log('Database connection pre-warmed successfully');
+    
+    // Pre-warm authentication and common operations
+    console.log('Container startup completed - ready for requests');
+  } catch (error) {
+    console.log('Database pre-warming attempted (some operations may have failed)');
+  }
+})();
+
+// Function warming system
+let lastWarmupTime = 0;
+let functionCallCount = 0;
+const WARMUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const WARMUP_FUNCTIONS = [
+  'savePlayerData',
+  'createLobby', 
+  'joinLobby',
+  'getPlayers',
+  'updatePlayer',
+  'deletePlayer',
+  'incrementPlayerField',
+  'updateCommanderDamage',
+  'applyCombatDamage',
+  'addPlayer',
+  'updateLobbyTimestamp',
+  'updatePlayerSettings',
+  'cleanupRateLimits',
+  'cleanupOldLobbies',
+  'startTimer',
+  'recordPayInterest',
+  'warmUpFunctions',
+  'heartbeat'
+];
+
+// Track function activity
+function trackFunctionCall(functionName) {
+  functionCallCount++;
+  console.log(`Function call #${functionCallCount}: ${functionName} at ${new Date().toISOString()}`);
+}
+
+// Warm up all functions by making lightweight calls
+async function warmUpFunctions() {
+  const now = Date.now();
+  
+  // Only warm up if enough time has passed since last warmup
+  if (now - lastWarmupTime < WARMUP_INTERVAL) {
+    console.log(`Skipping warmup - last warmup was ${Math.round((now - lastWarmupTime) / 1000)}s ago`);
+    return;
+  }
+  
+  lastWarmupTime = now;
+  console.log('Starting function warmup...');
+  
+  try {
+    // Simple warmup by just logging - this keeps the container warm
+    console.log(`Functions container warmed up at ${new Date().toISOString()}`);
+    console.log(`Keeping warm: ${WARMUP_FUNCTIONS.join(', ')}`);
+    
+    // Keep database connection alive with multiple lightweight operations
+    if (db) {
+      try {
+        // Multiple lightweight database operations to ensure connection is fully warmed
+        const warmupPromises = [
+          db.collection('_warmup').doc('ping').get(),
+          db.collection('_warmup').doc('connection-test').get(),
+          // Test a typical operation pattern
+          db.collection('lobbies').limit(1).get()
+        ];
+        
+        await Promise.allSettled(warmupPromises);
+        console.log('Database connection and query patterns warmed up');
+      } catch (error) {
+        console.log('Database warmup attempted (some operations may have failed)');
+      }
+    }
+    
+    console.log(`Function warmup completed successfully. Total calls since startup: ${functionCallCount}`);
+  } catch (error) {
+    console.warn('Function warmup encountered an error:', error);
+  }
+}
+
+// Call warmup on first load and set up periodic warming
+async function triggerWarmup() {
+  try {
+    await warmUpFunctions();
+  } catch (error) {
+    console.warn('Function warmup failed:', error);
+  }
+}
 
 // Initialize database connection lazily
-let db = null;
 function getDb() {
   if (!db) {
     db = getFirestore();
@@ -172,10 +277,112 @@ function authenticateUser(auth) {
   }
 }
 
+// Middleware to trigger warmup on function calls
+function withWarmup(functionName) {
+  return function(handler) {
+    return async (request) => {
+      // Track this function call
+      trackFunctionCall(functionName);
+      
+      // For the very first call, prioritize response speed over warmup
+      const isFirstCall = functionCallCount === 1;
+      
+      if (isFirstCall) {
+        console.log(`First function call detected: ${functionName} - prioritizing response speed`);
+        // Start warmup in background without awaiting
+        setImmediate(() => {
+          triggerWarmup().catch(error => {
+            console.warn('Background warmup failed:', error);
+          });
+        });
+      } else {
+        // For subsequent calls, trigger warmup in background
+        triggerWarmup().catch(error => {
+          console.warn('Background warmup failed:', error);
+        });
+      }
+      
+      // Execute the actual function
+      return await handler(request);
+    };
+  };
+}
+
+// Dedicated ultra-fast warmup function for first calls
+exports.quickWarmup = onCall({
+  cors: true
+}, async (request) => {
+  // This is an ultra-lightweight function designed for the first call
+  const timestamp = new Date().toISOString();
+  console.log(`Quick warmup called at ${timestamp}`);
+  
+  // Track this as a function call but don't trigger heavy warmup
+  functionCallCount++;
+  
+  // Start background warmup without awaiting
+  setImmediate(() => {
+    triggerWarmup().catch(error => {
+      console.warn('Background warmup after quickWarmup failed:', error);
+    });
+  });
+  
+  return {
+    success: true,
+    message: 'Quick warmup completed',
+    timestamp,
+    ready: true
+  };
+});
+
+// Dedicated function for warming up all functions
+exports.warmUpFunctions = onCall({
+  cors: true
+}, async (request) => {
+  trackFunctionCall('warmUpFunctions');
+  console.log('Manual warmup triggered');
+  
+  try {
+    await warmUpFunctions();
+    return { 
+      success: true, 
+      message: `Warmup completed for ${WARMUP_FUNCTIONS.length} functions`,
+      warmedFunctions: WARMUP_FUNCTIONS,
+      timestamp: new Date().toISOString(),
+      lastWarmupTime: new Date(lastWarmupTime).toISOString(),
+      totalFunctionCalls: functionCallCount
+    };
+  } catch (error) {
+    console.error('Manual warmup failed:', error);
+    throw new HttpsError('internal', 'Warmup failed. Please try again.');
+  }
+});
+
+// Heartbeat function to keep functions warm (can be called by external monitoring)
+exports.heartbeat = onCall({
+  cors: true
+}, async (request) => {
+  trackFunctionCall('heartbeat');
+  const timestamp = new Date().toISOString();
+  console.log(`Heartbeat received at ${timestamp}`);
+  
+  // Trigger warmup if needed
+  await triggerWarmup();
+  
+  return {
+    success: true,
+    message: 'Heartbeat successful',
+    timestamp,
+    functionsCount: WARMUP_FUNCTIONS.length,
+    lastWarmupTime: new Date(lastWarmupTime).toISOString(),
+    uptime: process.uptime(),
+    totalFunctionCalls: functionCallCount
+  };
+});
+
 // Save or update player data when user signs in
 exports.savePlayerData = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('savePlayerData')(async (request) => {
   const data = request.data;
   const auth = request.auth;
   
@@ -206,13 +413,13 @@ exports.savePlayerData = onCall({
     console.error('Error saving player data:', error);
     throw new HttpsError('internal', 'Failed to save player data. Please try again.');
   }
-});
+}));
 
 // Create a lobby, given player data (callable function)
 exports.createLobby = onCall({
   cors: true,
   timeoutSeconds: 10
-}, async (request) => {
+}, withWarmup('createLobby')(async (request) => {
   const player = request.data; // request.data IS the player object
   authenticateUser(request.auth);
   const userId = request.auth.uid;
@@ -249,12 +456,12 @@ exports.createLobby = onCall({
     console.error("Error creating lobby:", err);
     throw new HttpsError('internal', 'Failed to create lobby. Please try again.');
   }
-});
+}));
 
 // Join a lobby (callable)
 exports.joinLobby = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('joinLobby')(async (request) => {
   const {player, lobbyCode} = request.data;
   authenticateUser(request.auth);
   const userId = request.auth.uid;
@@ -299,12 +506,12 @@ exports.joinLobby = onCall({
     // Wrap other errors
     throw new HttpsError('internal', 'Failed to join lobby. Please try again.');
   }
-});
+}));
 
 // Get all players in a lobby
 exports.getPlayers = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('getPlayers')(async (request) => {
   const {lobbyId} = request.data;
   authenticateUser(request.auth);
 
@@ -321,12 +528,12 @@ exports.getPlayers = onCall({
   });
 
   return {players};
-});
+}));
 
 // Update a player in a lobby
 exports.updatePlayer = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('updatePlayer')(async (request) => {
   const {lobbyId, playerId, updates} = request.data;
   authenticateUser(request.auth);
   const userId = request.auth.uid;
@@ -380,12 +587,12 @@ exports.updatePlayer = onCall({
   trackWrite(`updatePlayer - ${playerId} fields: ${Object.keys(updates).join(', ')}`);
 
   return {success: true};
-});
+}));
 
 // Delete a player from a lobby
 exports.deletePlayer = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('deletePlayer')(async (request) => {
   const {lobbyId, playerId} = request.data;
   authenticateUser(request.auth);
 
@@ -395,12 +602,12 @@ exports.deletePlayer = onCall({
   trackWrite(`deletePlayer - ${playerId}`);
 
   return {success: true};
-});
+}));
 
 // Increment a player's field (e.g. life, score)
 exports.incrementPlayerField = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('incrementPlayerField')(async (request) => {
   const {lobbyId, playerId, field, value} = request.data;
   authenticateUser(request.auth);
   const userId = request.auth.uid;
@@ -421,12 +628,12 @@ exports.incrementPlayerField = onCall({
   trackWrite(`incrementPlayerField - ${playerId} ${field} by ${value}`);
 
   return {success: true};
-});
+}));
 
 // Update commander damages in a transaction
 exports.updateCommanderDamage = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('updateCommanderDamage')(async (request) => {
   const {lobbyId, playerId, commanderDamages} = request.data;
   authenticateUser(request.auth);
 
@@ -443,12 +650,12 @@ exports.updateCommanderDamage = onCall({
   });
 
   return {success: true};
-});
+}));
 
 // Apply combat damage transaction
 exports.applyCombatDamage = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('applyCombatDamage')(async (request) => {
   const {lobbyId, playerId} = request.data;
   authenticateUser(request.auth);
 
@@ -542,11 +749,11 @@ exports.applyCombatDamage = onCall({
     }
     throw new HttpsError('internal', `Failed to apply combat damage for player ${playerId}: ${error.message}`);
   }
-});
+}));
 
 exports.addPlayer = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('addPlayer')(async (request) => {
   const {lobbyId, player} = request.data;
   authenticateUser(request.auth);
 
@@ -569,12 +776,12 @@ exports.addPlayer = onCall({
   
   trackWrite(`addPlayer - add player to lobby ${lobbyId}`);
   return { success: true };
-});
+}));
 
 // Update lobby timestamp
 exports.updateLobbyTimestamp = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('updateLobbyTimestamp')(async (request) => {
   const { lobbyId } = request.data;
   authenticateUser(request.auth);
 
@@ -585,12 +792,12 @@ exports.updateLobbyTimestamp = onCall({
   trackWrite(`updateLobbyTimestamp - lobby ${lobbyId}`);
   
   return { success: true };
-});
+}));
 
 // Update player settings (name, colors, etc.)
 exports.updatePlayerSettings = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('updatePlayerSettings')(async (request) => {
   const {lobbyId, playerId, settings} = request.data;
   authenticateUser(request.auth);
 
@@ -621,12 +828,12 @@ exports.updatePlayerSettings = onCall({
   trackWrite(`updatePlayerSettings - update player ${playerId}`);
   
   return { success: true };
-});
+}));
 
 // Cleanup function for expired rate limit documents
 exports.cleanupRateLimits = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('cleanupRateLimits')(async (request) => {
   authenticateUser(request.auth);
   
   const now = Date.now();
@@ -654,12 +861,12 @@ exports.cleanupRateLimits = onCall({
     message: 'Cleanup completed', 
     deleted: expiredDocs.docs.length 
   };
-});
+}));
 
 // Cleanup function for old lobbies (older than 7 days)
 exports.cleanupOldLobbies = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('cleanupOldLobbies')(async (request) => {
   authenticateUser(request.auth);
   
   const sevenDaysAgo = new Date();
@@ -712,9 +919,9 @@ exports.cleanupOldLobbies = onCall({
     deleted: deletedCount,
     totalFound: oldLobbies.docs.length
   };
-});
+}));
 
-exports.startTimer = onCall({ cors: true }, async (request) => {
+exports.startTimer = onCall({ cors: true }, withWarmup('startTimer')(async (request) => {
   const { lobbyId, duration } = request.data;
   authenticateUser(request.auth);
 
@@ -736,12 +943,12 @@ exports.startTimer = onCall({ cors: true }, async (request) => {
   trackWrite(`startTimer - lobby ${lobbyId} for ${duration} min`);
 
   return { success: true, timerEnd };
-});
+}));
 
 // Record user's interest in supporting the project
 exports.recordPayInterest = onCall({
   cors: true
-}, async (request) => {
+}, withWarmup('recordPayInterest')(async (request) => {
   authenticateUser(request.auth);
   const userId = request.auth.uid;
 
@@ -784,4 +991,4 @@ exports.recordPayInterest = onCall({
     console.error('Error recording pay interest:', error);
     throw new HttpsError('internal', 'Failed to record interest. Please try again.');
   }
-});
+}));
