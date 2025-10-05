@@ -41,7 +41,7 @@ let db = getFirestore();
 // Function warming system
 let lastWarmupTime = 0;
 let functionCallCount = 0;
-const WARMUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const WARMUP_INTERVAL = 10 * 60 * 1000; // 10 minutes
 const WARMUP_FUNCTIONS = [
   'savePlayerData',
   'createLobby', 
