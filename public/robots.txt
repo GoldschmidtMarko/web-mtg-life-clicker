@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://mtglifeclicker.com/sitemap.xml
+
+# Allow search engines to crawl all content
+Allow: /index.html
+Allow: /lobby.html
+Allow: /impressum.html
+Allow: /privacy.html
+
+# Disallow admin or private areas (if any)
+# Disallow: /admin/
+
+# Crawl-delay (optional - only if needed)
+# Crawl-delay: 1
