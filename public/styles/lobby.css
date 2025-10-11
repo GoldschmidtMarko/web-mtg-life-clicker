@@ -23,12 +23,6 @@ body {
     overflow: hidden; /* Prevent container overflow */
 }
 
-/* Page label scaling */
-#page-label {
-    font-size: clamp(1.25rem, 4vw, 2.5rem);
-    margin-bottom: clamp(0.5rem, 2vw, 1rem);
-}
-
 /* Lobby info scaling */
 #lobby-info {
     font-size: clamp(0.75rem, 2vw, 1rem);
@@ -52,21 +46,33 @@ body {
     font-size: clamp(0.625rem, 1.5vw, 0.875rem);
 }
 
+/* Modern lobby enhancements */
 .player-frame {
     display: flex;
     flex-direction: column;
     font-size: 4vh; /* font scales with viewport height */
     justify-content: center;
     align-items: center;
-    border: 1px solid black;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     height: 100%;
     padding: 10px;
     position: relative;
     overflow: hidden; /* Ensure overlay stays inside */
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     /* Ensure minimum height for mobile */
     min-height: 80px;
     /* Allow frames to scale higher - remove restrictive max-height */
     max-height: none;
+}
+
+.player-frame:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .settings-button,
@@ -74,90 +80,60 @@ body {
     position: absolute;
     z-index: 10; /* Ensure above overlay squares */
     pointer-events: auto;
-    background-color: transparent;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.settings-button:hover,
+.remove-player-button:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .remove-player-button {
-    top: 2px;
-    left: 3px;
+    top: 4px;
+    left: 4px;
 }
 
 .settings-button {
-    top: 2px;
-    right: 3px;
+    top: 4px;
+    right: 4px;
 }
 
-.modal {
-    display: none; /* Hidden by default */
-    position: fixed; /* Ensure it covers the whole viewport */
-    z-index: 1000; /* High z-index to be on top */
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.4); /* Semi-transparent black background */
-    display: flex; /* Use flexbox for centering */
-    align-items: center; /* Center vertically */
-    justify-content: center; /* Center horizontally */
-}
-
-.modal-content {
-    background-color: #fefefe;
-    margin: auto;
-    padding: 20px;
-    border-radius: 10px;
-    width: 90%; /* Responsive width */
-    max-width: 400px; /* Max width */
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Add a subtle shadow */
-    display: flex;
-    flex-direction: column;
-    gap: 15px; /* Spacing between items */
-}
-.modal-content {
-    font-size: 1.1em;
-    color: #000;
-}
-
-#dice-display {
-    left: 80%;
-    top: 80%;
-    position: fixed;
-    transform: translate(-50%, -50%) rotate(840deg);
-    width: 80px; /* Adjust size as needed */
-    height: 80px; /* Adjust size as needed */
-    background-color: rgb(119, 114, 114);
-    border-radius: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 3em; /* Adjust font size as needed */
-    font-weight: bold;
-    color: black;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    display: none; /* Initially hidden */
-}
-
+/* Enhanced page dots */
 .dot {
-    height: 20px; /* Increased size */
-    width: 20px; /* Increased size */
-    background-color: transparent; /* Made transparent */
-    border: 2px solid #FFFFFF; /* Added white border */
+    height: 16px;
+    width: 16px;
+    background-color: rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.5);
     border-radius: 50%;
     display: inline-block;
-    margin: 0 3px; /* Added some spacing */
+    margin: 0 4px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.dot:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.2);
 }
 
 .dot.filled {
-    background-color: #3B82F6; /* Changed to blue */
-    border: 2px solid #FFFFFF; /* Added white border */
+    background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
 }
 
+/* Enhanced overlay effects */
 .player-frame-overlay {
     position: absolute;
     top: 0;
@@ -169,29 +145,75 @@ body {
     grid-template-columns: 1fr 1fr;
     z-index: 2;
     pointer-events: none; /* Only overlay squares get pointer events */
+    border-radius: 16px;
+    overflow: hidden;
 }
+
 .player-frame-overlay .overlay-square {
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.1em;
     font-weight: bold;
-    color: rgba(0,0,0,0.0); /* Label text fully transparent by default */
-    background: rgba(0,0,0,0.18);
-    border: 1px dashed rgba(0, 0, 0, 0.4); /* Dashed border, semi-transparent */
-    border-radius: 0px;
-    margin: 0px;
+    color: rgba(255, 255, 255, 0);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin: 2px;
+    border-radius: 8px;
     pointer-events: auto;
     z-index: 3;
     cursor: pointer;
     user-select: none;
-    transition: background 0.2s, border-color 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Remove backdrop blur to prevent text blurriness */
 }
+
 .player-frame-overlay .overlay-square:hover {
-    color: #111; /* Black and visible on hover */
-    background: rgba(255, 255, 255, 0.205); /* White background for contrast */
-    border-color: rgba(37, 99, 235, 0.7); /* Slightly less transparent on hover */
-    border-style: dashed;
+    color: rgba(255, 255, 255, 0.95);
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.8);
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+    transform: scale(0.98);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+/* Enhanced dice display */
+#dice-display {
+    left: 80%;
+    top: 80%;
+    position: fixed;
+    transform: translate(-50%, -50%) rotate(840deg);
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 3em;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    display: none;
+    transition: all 0.3s ease;
+}
+
+/* Professional gradient backgrounds for key elements */
+.bg-clip-text {
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+/* Enhanced modal styles */
+.modal-content {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
 }
 
 /* Mobile-specific adjustments for lobby */
@@ -252,11 +274,6 @@ body {
     #lobby-container {
         padding: 0.5rem;
         gap: 0.5rem;
-    }
-    
-    #page-label {
-        font-size: clamp(1rem, 3vw, 1.5rem);
-        margin-bottom: 0.5rem;
     }
     
     #player-grid {

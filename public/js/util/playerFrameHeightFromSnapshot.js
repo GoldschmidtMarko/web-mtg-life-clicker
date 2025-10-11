@@ -10,8 +10,7 @@ export function getPlayerFrameHeightFromSnapshot(snapshot, fixedButtons, columns
         const leftPanelHeight = document.getElementById('left-panel').offsetHeight;
         const screenHeight = window.innerHeight;
         const bottomControlsHeight = fixedButtons.offsetHeight;
-        const pageLabelHeight = document.getElementById('page-label').offsetHeight;
-        let availableHeight = screenHeight - bottomControlsHeight - pageLabelHeight - 100; // extra spacing buffer
+        let availableHeight = screenHeight - bottomControlsHeight - 140; // extra spacing buffer
         if (isStackedLayout()) {
             availableHeight = availableHeight - leftPanelHeight;
         }

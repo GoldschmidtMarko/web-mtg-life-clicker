@@ -181,9 +181,6 @@ function initializeLobbyUI(lobbyId) {
 }
 
 function populatePlayerGridCommander(snapshot) {
-    const pageLabel = document.getElementById('page-label');
-    pageLabel.textContent = "Commander";
-
     const playerGrid = document.getElementById('player-grid');
     playerGrid.innerHTML = ''; // Clear the current player grid
     const fixedButtons =  document.getElementById('bottom-controls');
@@ -193,36 +190,50 @@ function populatePlayerGridCommander(snapshot) {
         const playerName = playerData.name;
         const commanderDamages = playerData.commanderDamages;
 
-        const playerFrame = document.createElement('button'); // Change div to button
+        // Create modern player frame
+        const playerFrame = document.createElement('button');
         playerFrame.style.backgroundColor = playerData.backgroundColor;
         playerFrame.style.color = playerData.fontColor;
         playerFrame.classList.add('player-frame');
         playerFrame.style.height = `${playerFrameHeight}px`;
         
-                const fontSize = playerFrameHeight * 0.15;
+        const fontSize = playerFrameHeight * 0.15;
         playerFrame.style.fontSize = `${fontSize}px`;
 
-        
+        // Modern name element
         const nameElement = document.createElement('div');
         nameElement.textContent = `${playerName}`;
+        nameElement.style.fontWeight = 'bold';
+        nameElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
+        nameElement.style.marginBottom = '8px';
         playerFrame.appendChild(nameElement);
 
-        if (commanderDamages) {
+        if (commanderDamages && commanderDamages.length > 0) {
             for (const commanderDamage of commanderDamages) {
                 const commanderName = commanderDamage.commanderName;
                 const damage = commanderDamage.damage
                 const lifeToApply = commanderDamage.lifeToApply
                 
                 const lifeElement = document.createElement('div');
+                lifeElement.style.marginBottom = '4px';
+                lifeElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
+                lifeElement.style.fontSize = `${fontSize * 0.8}px`;
+                
                 if (lifeToApply === 0) {
-                    lifeElement.textContent = `${commanderName}: ${damage}`;
+                    lifeElement.innerHTML = `<span style="color: #f59e0b; font-weight: bold;">${commanderName}:</span> <span style="font-weight: bold;">${damage}</span>`;
                 } else if (lifeToApply > 0) {
-                    lifeElement.textContent = `${commanderName}: ${damage} (+${lifeToApply})`;
+                    lifeElement.innerHTML = `<span style="color: #f59e0b; font-weight: bold;">${commanderName}:</span> <span style="font-weight: bold;">${damage}</span> <span style="color: #10b981; font-weight: bold;">(+${lifeToApply})</span>`;
                 } else {
-                    lifeElement.textContent = `${commanderName}: ${damage} (${lifeToApply})`;
+                    lifeElement.innerHTML = `<span style="color: #f59e0b; font-weight: bold;">${commanderName}:</span> <span style="font-weight: bold;">${damage}</span> <span style="color: #ef4444; font-weight: bold;">(${lifeToApply})</span>`;
                 }
                 playerFrame.appendChild(lifeElement);
             }
+        } else {
+            // Show message when no commander damage
+            const noCommanderElement = document.createElement('div');
+            noCommanderElement.innerHTML = '<span style="opacity: 0.6; font-style: italic;">No Commander Damage</span>';
+            noCommanderElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
+            playerFrame.appendChild(noCommanderElement);
         }
 
         addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, playerFrameHeight)
@@ -240,9 +251,6 @@ function populatePlayerGridCommander(snapshot) {
 
 
 function populatePlayerGridInfect(snapshot) {
-    const pageLabel = document.getElementById('page-label');
-    pageLabel.textContent = "Infect";
-
     const playerGrid = document.getElementById('player-grid');
     playerGrid.innerHTML = ''; // Clear the current player grid
     const fixedButtons =  document.getElementById('bottom-controls');
@@ -253,7 +261,8 @@ function populatePlayerGridInfect(snapshot) {
         const infectToApply = playerData.infectToApply;
         const infect = playerData.infect;
 
-        const playerFrame = document.createElement('button'); // Change div to button
+        // Create modern player frame
+        const playerFrame = document.createElement('button');
         playerFrame.style.backgroundColor = playerData.backgroundColor;
         playerFrame.style.color = playerData.fontColor;
         playerFrame.classList.add('player-frame');
@@ -262,17 +271,24 @@ function populatePlayerGridInfect(snapshot) {
         const fontSize = playerFrameHeight * 0.15;
         playerFrame.style.fontSize = `${fontSize}px`;
 
+        // Modern name element
         const nameElement = document.createElement('div');
         nameElement.textContent = `${playerName}`;
+        nameElement.style.fontWeight = 'bold';
+        nameElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
         playerFrame.appendChild(nameElement);
 
+        // Modern infect display with enhanced styling
         const lifeElement = document.createElement('div');
+        lifeElement.style.marginTop = '8px';
+        lifeElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
+        
         if (infectToApply === 0) {
-            lifeElement.textContent = `Infect: ${infect}`;
+            lifeElement.innerHTML = `<span style="font-size: 0.8em; opacity: 0.8;">Infect:</span><br><span style="font-size: 1.2em; font-weight: bold; color: #8b5cf6;">${infect}</span>`;
         } else if (infectToApply > 0) {
-            lifeElement.textContent = `Infect: ${infect} (+${infectToApply})`;
+            lifeElement.innerHTML = `<span style="font-size: 0.8em; opacity: 0.8;">Infect:</span><br><span style="font-size: 1.2em; font-weight: bold; color: #8b5cf6;">${infect}</span> <span style="color: #10b981; font-weight: bold;">(+${infectToApply})</span>`;
         } else {
-            lifeElement.textContent = `Infect: ${infect} (${infectToApply})`;
+            lifeElement.innerHTML = `<span style="font-size: 0.8em; opacity: 0.8;">Infect:</span><br><span style="font-size: 1.2em; font-weight: bold; color: #8b5cf6;">${infect}</span> <span style="color: #ef4444; font-weight: bold;">(${infectToApply})</span>`;
         }
         playerFrame.appendChild(lifeElement);
 
@@ -289,20 +305,21 @@ function populatePlayerGridInfect(snapshot) {
 }
 
 function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, frameHeight) {
-    // Calculate button size based on frame height
-    const buttonSize = Math.max(12, Math.min(24, frameHeight * 0.08)); // Min 12px, max 24px, 8% of frame height
-    const fontSize = Math.max(8, Math.min(16, frameHeight * 0.06)); // Min 8px, max 16px, 6% of frame height
+    // Calculate button size based on frame height with better scaling
+    const buttonSize = Math.max(16, Math.min(28, frameHeight * 0.1)); // Min 16px, max 28px, 10% of frame height
+    const fontSize = Math.max(10, Math.min(18, frameHeight * 0.07)); // Min 10px, max 18px, 7% of frame height
     
-    // Add the "X" button
+    // Add the modern "X" button
     const removeButton = document.createElement('button');
     const playerName = playerDocument.data().name;
-    removeButton.textContent = '✖️'
+    removeButton.innerHTML = '<i class="fas fa-times"></i>'; // Modern X icon
     removeButton.classList.add('remove-player-button');
     
-    // Set dynamic sizing
+    // Set dynamic sizing with modern styling
     removeButton.style.width = `${buttonSize}px`;
     removeButton.style.height = `${buttonSize}px`;
     removeButton.style.fontSize = `${fontSize}px`;
+    removeButton.style.color = '#ef4444'; // Red color for delete
     
     removeButton.addEventListener('click', (event) => {
         event.stopPropagation();
@@ -314,11 +331,10 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, frame
                 const originalDisabled = confirmButton.disabled;
                 
                 try {
-                    // Set loading state
+                    // Set loading state with modern styling
                     confirmButton.disabled = true;
-                    confirmButton.textContent = 'Removing...';
-                    confirmButton.style.opacity = '0.6';
-                    confirmButton.style.cursor = 'not-allowed';
+                    confirmButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+                    confirmButton.style.opacity = '0.8';
                     
                     await deletePlayer({ lobbyId, playerId: playerDocument.id });
                     
@@ -326,7 +342,6 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, frame
                     confirmButton.disabled = originalDisabled;
                     confirmButton.textContent = originalText;
                     confirmButton.style.opacity = '';
-                    confirmButton.style.cursor = '';
                 } catch (error) {
                     console.error('Error deleting player:', error);
                     
@@ -334,7 +349,6 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, frame
                     confirmButton.disabled = originalDisabled;
                     confirmButton.textContent = originalText;
                     confirmButton.style.opacity = '';
-                    confirmButton.style.cursor = '';
                 }
             } else {
                 // Fallback if button not found
@@ -343,28 +357,27 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, frame
         });
     });
 
+    // Modern settings button
     const settingsButton = document.createElement('button');
-    settingsButton.textContent = '⚙️';
+    settingsButton.innerHTML = '<i class="fas fa-cog"></i>'; // Modern cog icon
     settingsButton.classList.add('settings-button');
     
-    // Set dynamic sizing
+    // Set dynamic sizing with modern styling
     settingsButton.style.width = `${buttonSize}px`;
     settingsButton.style.height = `${buttonSize}px`;
     settingsButton.style.fontSize = `${fontSize}px`;
+    settingsButton.style.color = '#6366f1'; // Purple color for settings
     
     settingsButton.addEventListener('click', (event) => {
         event.stopPropagation();
         openSettingsModal(playerDocument.id, playerName);
     });
+    
     playerFrame.appendChild(removeButton);
     playerFrame.appendChild(settingsButton);
 }
 
 function populatePlayerGridDefault(snapshot) {
-    const pageLabel = document.getElementById('page-label');
-    pageLabel.textContent = "Life";
-
-
     const playerGrid = document.getElementById('player-grid');
     playerGrid.innerHTML = ''; // Clear the current player grid
     const fixedButtons =  document.getElementById('bottom-controls');
@@ -376,7 +389,8 @@ function populatePlayerGridDefault(snapshot) {
         const playerLife = playerData.life;
         const lifeToApply = playerData.lifeToApply;
 
-        const playerFrame = document.createElement('button'); // Change div to button
+        // Create modern player frame
+        const playerFrame = document.createElement('button');
         playerFrame.style.backgroundColor = playerData.backgroundColor;
         playerFrame.style.color = playerData.fontColor;
         playerFrame.classList.add('player-frame');
@@ -385,17 +399,24 @@ function populatePlayerGridDefault(snapshot) {
         const fontSize = playerFrameHeight * 0.15;
         playerFrame.style.fontSize = `${fontSize}px`;
 
-
+        // Modern name element with gradient text for better readability
         const nameElement = document.createElement('div');
         nameElement.textContent = `${playerName}`;
+        nameElement.style.fontWeight = 'bold';
+        nameElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
         playerFrame.appendChild(nameElement);
+        
+        // Modern life display with enhanced styling
         const lifeElement = document.createElement('div');
+        lifeElement.style.marginTop = '8px';
+        lifeElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
+        
         if (lifeToApply === 0) {
-            lifeElement.textContent = `Life: ${playerLife}`;
+            lifeElement.innerHTML = `<span style="font-size: 0.8em; opacity: 0.8;">Life:</span><br><span style="font-size: 1.2em; font-weight: bold;">${playerLife}</span>`;
         } else if (lifeToApply > 0) {
-            lifeElement.textContent = `Life: ${playerLife} (+${lifeToApply})`;
+            lifeElement.innerHTML = `<span style="font-size: 0.8em; opacity: 0.8;">Life:</span><br><span style="font-size: 1.2em; font-weight: bold;">${playerLife}</span> <span style="color: #10b981; font-weight: bold;">(+${lifeToApply})</span>`;
         } else {
-            lifeElement.textContent = `Life: ${playerLife} (${lifeToApply})`;
+            lifeElement.innerHTML = `<span style="font-size: 0.8em; opacity: 0.8;">Life:</span><br><span style="font-size: 1.2em; font-weight: bold;">${playerLife}</span> <span style="color: #ef4444; font-weight: bold;">(${lifeToApply})</span>`;
         }
         playerFrame.appendChild(lifeElement);
 
