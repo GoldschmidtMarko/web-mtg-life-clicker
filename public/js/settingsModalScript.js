@@ -19,37 +19,51 @@ const updatePlayerSettings = functions.httpsCallable('updatePlayerSettings');
 
 // Get references to the modal and the settings button
 const settingsModal = document.getElementById('settingsModal');
-const modalContent = settingsModal.querySelector('.modal-content');
+const modalContent = settingsModal?.querySelector('.settings-modal-content');
 
 // Variable to store the current user ID
 let currentUserId = null;
 
-// Function to display the modal (assuming you have a CSS class like 'modal-container' for styling)
+// Function to display the modal (using Tailwind classes)
 export function openSettingsModal(userId, playerName) {
-    settingsModal.style.display = 'block';
-    document.getElementById('username').value = playerName; // Populate username input
-    currentUserId = userId; // Store the user ID
+    if (settingsModal) {
+        settingsModal.classList.remove('hidden');
+        settingsModal.classList.add('flex');
+        document.body.classList.add('modal-open'); // Prevent body scroll
+        
+        // Populate username input if available
+        const usernameInput = document.getElementById('username');
+        if (usernameInput) {
+            usernameInput.value = playerName;
+        }
+        
+        currentUserId = userId; // Store the user ID
+    }
 }
+
 // Function to hide the modal
 export function closeSettingsModal() {
-    settingsModal.style.display = 'none';
+    if (settingsModal) {
+        settingsModal.classList.add('hidden');
+        settingsModal.classList.remove('flex');
+        document.body.classList.remove('modal-open'); // Restore body scroll
+    }
 }
 
 // Close modal when clicking outside
-// We now target the modal container itself
 window.addEventListener('click', (event) => {
- // Assuming your inner modal content has this class
-
     // Check if the clicked element is the modal container itself,
     // or if it's outside the modal content
-    if (event.target === settingsModal || (settingsModal.contains(event.target) && !modalContent.contains(event.target))) {
+    if (settingsModal && modalContent && 
+        (event.target === settingsModal || 
+         (settingsModal.contains(event.target) && !modalContent.contains(event.target)))) {
         closeSettingsModal();
     }
 });
 
 // Close modal when pressing escape key
 window.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && settingsModal && settingsModal.style.display === 'block') {
+    if (event.key === 'Escape' && settingsModal && !settingsModal.classList.contains('hidden')) {
         closeSettingsModal();
     }
 });

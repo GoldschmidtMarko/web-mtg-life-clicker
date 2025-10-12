@@ -100,6 +100,7 @@ export function openCommanderModal(lobbyId, playerDocument, snapshot) {
     const commanderModal = document.getElementById('commanderModal');
     commanderModal.classList.remove('hidden');
     commanderModal.classList.add('flex'); // Use flex to show and center
+    document.body.classList.add('modal-open'); // Prevent body scroll
 }
 
 const lobbyCollectionName = "lobbies"
@@ -167,6 +168,7 @@ export function closeCommanderModal() {
     const commanderModal = document.getElementById('commanderModal');
     commanderModal.classList.add('hidden');
     commanderModal.classList.remove('flex');
+    document.body.classList.remove('modal-open'); // Restore body scroll
 }
 
 // Add event listener to the close button
@@ -184,3 +186,10 @@ if (commanderModal) {
         }
     });
 }
+
+// Close commander modal when pressing escape key
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && commanderModal && !commanderModal.classList.contains('hidden')) {
+        closeCommanderModal();
+    }
+});

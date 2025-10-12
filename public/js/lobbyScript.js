@@ -151,6 +151,7 @@ function showConfirmationModal(message, onConfirm) {
     modalMessage.textContent = message;
     confirmationModal.classList.remove('hidden');
     confirmationModal.classList.add('flex'); // Use flex to show and center
+    document.body.classList.add('modal-open'); // Prevent body scroll
 
     // Remove previous event listeners to avoid multiple calls
     confirmRemoveButton.replaceWith(confirmRemoveButton.cloneNode(true));
@@ -159,16 +160,19 @@ function showConfirmationModal(message, onConfirm) {
     const newConfirmRemoveButton = document.getElementById('confirm-remove-button');
     const newCancelRemoveButton = document.getElementById('cancel-remove-button');
 
+    function hideModal() {
+        confirmationModal.classList.add('hidden');
+        confirmationModal.classList.remove('flex');
+        document.body.classList.remove('modal-open'); // Restore body scroll
+    }
 
     newConfirmRemoveButton.addEventListener('click', async () => {
         await onConfirm();
-        confirmationModal.classList.add('hidden');
-        confirmationModal.classList.remove('flex');
+        hideModal();
     });
 
     newCancelRemoveButton.addEventListener('click', () => {
-        confirmationModal.classList.add('hidden');
-        confirmationModal.classList.remove('flex');
+        hideModal();
     });
 }
 
@@ -220,18 +224,18 @@ function populatePlayerGridCommander(snapshot) {
                 lifeElement.style.fontSize = `${fontSize * 0.8}px`;
                 
                 if (lifeToApply === 0) {
-                    lifeElement.innerHTML = `<span style="color: #f59e0b; font-weight: bold;">${commanderName}:</span> <span style="font-weight: bold;">${damage}</span>`;
+                    lifeElement.innerHTML = `<span style="font-weight: bold;">${commanderName}:</span> <span style="font-weight: bold;">${damage}</span>`;
                 } else if (lifeToApply > 0) {
-                    lifeElement.innerHTML = `<span style="color: #f59e0b; font-weight: bold;">${commanderName}:</span> <span style="font-weight: bold;">${damage}</span> <span style="color: #10b981; font-weight: bold;">(+${lifeToApply})</span>`;
+                    lifeElement.innerHTML = `<span style="font-weight: bold;">${commanderName}:</span> <span style="font-weight: bold;">${damage}</span> <span style="color: #10b981; font-weight: bold;">(+${lifeToApply})</span>`;
                 } else {
-                    lifeElement.innerHTML = `<span style="color: #f59e0b; font-weight: bold;">${commanderName}:</span> <span style="font-weight: bold;">${damage}</span> <span style="color: #ef4444; font-weight: bold;">(${lifeToApply})</span>`;
+                    lifeElement.innerHTML = `<span style="font-weight: bold;">${commanderName}:</span> <span style="font-weight: bold;">${damage}</span> <span style="color: #ef4444; font-weight: bold;">(${lifeToApply})</span>`;
                 }
                 playerFrame.appendChild(lifeElement);
             }
         } else {
             // Show message when no commander damage
             const noCommanderElement = document.createElement('div');
-            noCommanderElement.innerHTML = '<span style="opacity: 0.6; font-style: italic;">No Commander Damage</span>';
+            noCommanderElement.innerHTML = '<span style="opacity: 0.6; font-style: italic;">No Damage</span>';
             noCommanderElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
             playerFrame.appendChild(noCommanderElement);
         }
