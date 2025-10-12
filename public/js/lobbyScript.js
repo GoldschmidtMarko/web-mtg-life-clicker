@@ -765,9 +765,98 @@ function showLobbyTimer(timerEnd) {
     if (!timerDisplay) {
         timerDisplay = document.createElement('div');
         timerDisplay.id = 'lobby-timer-display';
-        timerDisplay.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 24px;border-radius:8px;font-size:1.5em;z-index:10001;box-shadow:0 2px 10px rgba(0,0,0,0.3);cursor:pointer;';
+        timerDisplay.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            padding: 16px 32px;
+            border-radius: 16px;
+            font-size: 1.8em;
+            font-weight: bold;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            z-index: 10001;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(102, 126, 234, 0.2);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            animation: timerSlideIn 0.5s ease-out;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        `;
         timerDisplay.title = 'Click to hide timer';
         timerDisplay.addEventListener('click', hideLobbyTimer);
+        
+        // Add hover effects
+        timerDisplay.addEventListener('mouseenter', () => {
+            timerDisplay.style.transform = 'translateX(-50%) scale(1.05)';
+            timerDisplay.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(102, 126, 234, 0.3)';
+        });
+        
+        timerDisplay.addEventListener('mouseleave', () => {
+            timerDisplay.style.transform = 'translateX(-50%) scale(1)';
+            timerDisplay.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(102, 126, 234, 0.2)';
+        });
+        
+        // Add animation keyframes to document head
+        if (!document.getElementById('timer-animations')) {
+            const style = document.createElement('style');
+            style.id = 'timer-animations';
+            style.textContent = `
+                @keyframes timerSlideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-50%) translateY(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(-50%) translateY(0);
+                    }
+                }
+                
+                @keyframes timerPulse {
+                    0%, 100% { transform: translateX(-50%) scale(1); }
+                    50% { transform: translateX(-50%) scale(1.08); }
+                }
+                
+                @keyframes timerUrgent {
+                    0%, 100% { 
+                        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                        box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4), 0 4px 16px rgba(220, 38, 38, 0.3);
+                    }
+                    50% { 
+                        background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+                        box-shadow: 0 12px 40px rgba(239, 68, 68, 0.6), 0 6px 20px rgba(220, 38, 38, 0.4);
+                    }
+                }
+                
+                /* Mobile responsive adjustments */
+                @media (max-width: 768px) {
+                    #lobby-timer-display {
+                        font-size: 1.4em !important;
+                        padding: 12px 24px !important;
+                        top: 10px !important;
+                        max-width: calc(100vw - 40px) !important;
+                        box-sizing: border-box !important;
+                    }
+                }
+                
+                @media (max-width: 480px) {
+                    #lobby-timer-display {
+                        font-size: 1.2em !important;
+                        padding: 10px 20px !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
         document.body.appendChild(timerDisplay);
     }
     // Add audio element for last 10 seconds sound
@@ -794,9 +883,24 @@ function showLobbyTimer(timerEnd) {
         if (msLeft > 0) {
             const min = Math.floor(msLeft / 60000);
             const sec = Math.floor((msLeft % 60000) / 1000);
-            timerDisplay.textContent = `Timer: ${min}:${sec.toString().padStart(2, '0')}`;
-            // Play sound every second in last 10 seconds
-            if (msLeft <= 10000) {
+            const totalSeconds = Math.floor(msLeft / 1000);
+            
+            // Create timer icon with fallback
+            const timerIcon = '<i class="fas fa-clock" style="font-size: 0.9em; opacity: 0.9;"></i>';
+            const timerIconFallback = '⏱️';
+            const timeText = `${min}:${sec.toString().padStart(2, '0')}`;
+            
+            // Check if Font Awesome is loaded, otherwise use emoji fallback
+            const iconToUse = document.querySelector('.fas') ? timerIcon : timerIconFallback;
+            
+            // Update visual state based on time remaining
+            if (totalSeconds <= 10) {
+                // Critical state - red and pulsing
+                timerDisplay.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+                timerDisplay.style.animation = 'timerUrgent 1s infinite';
+                timerDisplay.innerHTML = `${iconToUse} <span style="font-size: 1.1em;"> ${timeText}</span>`;
+                
+                // Play sound every second in last 10 seconds
                 if (lastBeepSecond !== sec) {
                     lastBeepSecond = sec;
                     timerAudio.currentTime = 0;
@@ -805,9 +909,27 @@ function showLobbyTimer(timerEnd) {
                         console.error('Timer audio play failed:', err);
                     });
                 }
+            } else if (totalSeconds <= 30) {
+                // Warning state - orange and subtle pulse
+                timerDisplay.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+                timerDisplay.style.animation = 'timerPulse 2s infinite';
+                timerDisplay.innerHTML = `${iconToUse} <span>${timeText}</span>`;
+            } else if (totalSeconds <= 60) {
+                // Caution state - yellow
+                timerDisplay.style.background = 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)';
+                timerDisplay.style.animation = 'none';
+                timerDisplay.innerHTML = `${iconToUse} <span>${timeText}</span>`;
+            } else {
+                // Normal state - blue/purple gradient
+                timerDisplay.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                timerDisplay.style.animation = 'none';
+                timerDisplay.innerHTML = `${iconToUse} <span>${timeText}</span>`;
             }
         } else {
-            timerDisplay.textContent = 'Timer finished!';
+            // Timer finished state
+            timerDisplay.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            timerDisplay.style.animation = 'none';
+            timerDisplay.innerHTML = '<span>Timer Finished!</span>';
             clearInterval(timerDisplay._interval);
             setTimeout(hideLobbyTimer, 5000);
         }
@@ -821,7 +943,18 @@ function hideLobbyTimer() {
     const timerDisplay = document.getElementById('lobby-timer-display');
     if (timerDisplay) {
         if (timerDisplay._interval) clearInterval(timerDisplay._interval);
-        timerDisplay.remove();
+        
+        // Add smooth fade-out animation
+        timerDisplay.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        timerDisplay.style.opacity = '0';
+        timerDisplay.style.transform = 'translateX(-50%) translateY(-20px) scale(0.95)';
+        
+        // Remove element after animation completes
+        setTimeout(() => {
+            if (timerDisplay && timerDisplay.parentNode) {
+                timerDisplay.remove();
+            }
+        }, 300);
     }
 }
 
