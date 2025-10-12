@@ -37,6 +37,7 @@ const applyCombatDamage = functions.httpsCallable('applyCombatDamage');
 const addPlayer = functions.httpsCallable('addPlayer');
 const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
 const startTimer = functions.httpsCallable('startTimer');
+const validateLobby = functions.httpsCallable('validateLobby');
 
 // Function to show spam/error warnings
 function showSpamWarning(message = 'Please slow down! Too many requests.') {
@@ -963,12 +964,34 @@ function hideLobbyTimer() {
     }
 }
 
+// Function to validate if lobby exists using backend
+async function validateLobbyExists(lobbyId) {
+    try {
+        const result = await validateLobby({ lobbyId });
+        return result.data.exists;
+    } catch (error) {
+        console.error('Error validating lobby:', error);
+        return false;
+    }
+}
+
 // --- Initialize Lobby ---
 if (lobbyId) {
-    initializeLobbyUI(lobbyId);
-    initializeControls(lobbyId);
-    setupPlayerListener(lobbyId);
-    listenToLobbyTimer(lobbyId);
+    // Validate lobby exists before initializing
+    validateLobbyExists(lobbyId).then(isValid => {
+        if (isValid) {
+            initializeLobbyUI(lobbyId);
+            initializeControls(lobbyId);
+            setupPlayerListener(lobbyId);
+            listenToLobbyTimer(lobbyId);
+        } else {
+            console.error("Lobby not found!");
+            window.location.href = 'index.html';
+        }
+    }).catch(error => {
+        console.error("Error validating lobby:", error);
+        window.location.href = 'index.html';
+    });
 } else {
     console.error("Lobby ID not found!");
 }

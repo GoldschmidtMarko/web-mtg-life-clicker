@@ -60,7 +60,8 @@ const WARMUP_FUNCTIONS = [
   'startTimer',
   'recordPayInterest',
   'warmUpFunctions',
-  'heartbeat'
+  'heartbeat',
+  'validateLobby',
 ];
 
 // Track function activity
@@ -776,6 +777,32 @@ exports.addPlayer = onCall({
   
   trackWrite(`addPlayer - add player to lobby ${lobbyId}`);
   return { success: true };
+}));
+
+// Validate if a lobby exists
+exports.validateLobby = onCall({
+  cors: true
+}, withWarmup('validateLobby')(async (request) => {
+  const { lobbyId } = request.data;
+  
+  // Validate required parameters
+  if (!lobbyId || typeof lobbyId !== 'string' || lobbyId.trim() === '') {
+    throw new HttpsError('invalid-argument', 'Missing or invalid lobbyId parameter');
+  }
+
+  try {
+    const lobbyRef = getDb().collection('lobbies').doc(lobbyId);
+    const lobbyDoc = await lobbyRef.get();
+    trackRead(`validateLobby - check lobby ${lobbyId}`);
+    
+    return { 
+      exists: lobbyDoc.exists,
+      lobbyId: lobbyId
+    };
+  } catch (error) {
+    console.error('Error validating lobby:', error);
+    throw new HttpsError('internal', 'Failed to validate lobby. Please try again.');
+  }
 }));
 
 // Update lobby timestamp
