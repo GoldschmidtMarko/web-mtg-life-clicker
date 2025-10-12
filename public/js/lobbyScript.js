@@ -76,6 +76,11 @@ function showSpamWarning(message = 'Please slow down! Too many requests.') {
 const urlParams = new URLSearchParams(window.location.search);
 const lobbyId = urlParams.get('lobbyId'); // Assuming you pass lobbyId in the URL
 
+// Redirect to index.html if no lobbyId is provided
+if (!lobbyId) {
+    window.location.href = 'index.html';
+}
+
 // Page state
 let currentPage = 0; // Start with the first page (index 0)
 const totalPages = 3; // Based on the 3 dots in the HTML
