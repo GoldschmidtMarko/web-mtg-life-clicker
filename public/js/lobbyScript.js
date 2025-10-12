@@ -174,6 +174,14 @@ function showConfirmationModal(message, onConfirm) {
     newCancelRemoveButton.addEventListener('click', () => {
         hideModal();
     });
+
+    // Add click outside to close functionality
+    confirmationModal.addEventListener('click', (event) => {
+        // Check if the click was on the modal backdrop (not the modal content)
+        if (event.target === confirmationModal) {
+            hideModal();
+        }
+    });
 }
 
 function initializeLobbyUI(lobbyId) {
@@ -933,7 +941,7 @@ function createPlayerFrameOverlayWithoutButtons(playerFrame) {
     playerFrame.appendChild(overlay);
 }
 
-function createPlayerFrameOverlay(playerFrame) {
+export function createPlayerFrameOverlay(playerFrame) {
     // Create overlay container
     const overlay = document.createElement('div');
     overlay.className = 'player-frame-overlay';

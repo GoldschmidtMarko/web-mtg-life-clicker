@@ -74,27 +74,52 @@ export function openCommanderModal(lobbyId, playerDocument, snapshot) {
         const damage = commanderDamage ? commanderDamage.damage : 0;
         const commanderName = commanderDamage ? commanderDamage.commanderName : otherPlayerName;
 
-        
-        // Create a button for each player in the snapshot
-        const playerFrame = document.createElement('button'); // Change div to button
-        // playerFrame.style.backgroundColor = playerData.backgroundColor; // Removed dynamic background color
-        playerFrame.style.color = playerData.fontColor;
-        playerFrame.classList.add('commander-modal-button');
-        playerFrame.style.height = `${playerFrameHeight}px`;
+        // Create a container for each player
+        const playerContainer = document.createElement('div');
+        playerContainer.classList.add('commander-player-container');
+        playerContainer.style.height = `${playerFrameHeight}px`;
+        playerContainer.style.position = 'relative';
 
-        // Create and append a div for each opponent's damage within the playerFrame
+        // Create display area for commander name and damage
+        const displayArea = document.createElement('div');
+        displayArea.classList.add('commander-display-area');
+        displayArea.style.color = playerData.fontColor;
+        
         if (lifeToApply === 0) {
-            playerFrame.textContent = `${commanderName}: ${damage}`;
+            displayArea.textContent = `${commanderName}: ${damage}`;
         } else if (lifeToApply > 0) {
-            playerFrame.textContent = `${commanderName}: ${damage} (+${lifeToApply})`;
+            displayArea.textContent = `${commanderName}: ${damage} (+${lifeToApply})`;
         } else {
-            playerFrame.textContent = `${commanderName}: ${damage} (${lifeToApply})`;
+            displayArea.textContent = `${commanderName}: ${damage} (${lifeToApply})`;
         }
-        // Add event listeners for left and right clicks
-        playerFrame.addEventListener('click', (event) => {
-            onClickCommanderDamageName(lobbyId, event, playerDocument.id, otherPlayerName, snapshot);
+
+        // Create overlay using the same function as createPlayerFrameOverlay
+        const overlay = document.createElement('div');
+        overlay.className = 'player-frame-overlay';
+
+        // Create 4 regions with labels and click handlers
+        const regions = [
+            { label: '-1', changeAmount: -1, style: 'grid-row: 1; grid-column: 1;' },
+            { label: '+1', changeAmount: 1, style: 'grid-row: 1; grid-column: 2;' },
+            { label: '-5', changeAmount: -5, style: 'grid-row: 2; grid-column: 1;' },
+            { label: '+5', changeAmount: 5, style: 'grid-row: 2; grid-column: 2;' }
+        ];
+        regions.forEach((region) => {
+            const div = document.createElement('div');
+            div.className = 'overlay-square';
+            div.textContent = region.label;
+            div.style.cssText += region.style;
+            div.addEventListener('click', (event) => {
+                event.stopPropagation();
+                onClickCommanderDamageControl(lobbyId, playerDocument.id, otherPlayerName, snapshot, region.changeAmount);
+            });
+            overlay.appendChild(div);
         });
-        commanderDamageList.appendChild(playerFrame);
+
+        // Append display and overlay to container
+        playerContainer.appendChild(displayArea);
+        playerContainer.appendChild(overlay);
+        commanderDamageList.appendChild(playerContainer);
     });
     // Show the modal
     const commanderModal = document.getElementById('commanderModal');
@@ -106,21 +131,8 @@ export function openCommanderModal(lobbyId, playerDocument, snapshot) {
 const lobbyCollectionName = "lobbies"
 const playerCollectionName = "players"
 
-async function onClickCommanderDamageName(lobbyId, event, playerDocumentId, otherPlayerName, snapshot){
-    const playerFrame = event.currentTarget; // Get the button element that was clicked
-    const buttonWidth = playerFrame.offsetWidth;
-    const clickX = event.clientX - playerFrame.getBoundingClientRect().left;
-
-    // Store original button state for loading feedback
-    const originalText = playerFrame.textContent;
-    const originalDisabled = playerFrame.disabled;
-    
+async function onClickCommanderDamageControl(lobbyId, playerDocumentId, otherPlayerName, snapshot, changeAmount){
     try {
-        // Set loading state
-        playerFrame.disabled = true;
-        playerFrame.style.opacity = '0.6';
-        playerFrame.style.cursor = 'not-allowed';
-        
         const playerDocument = await getPlayer(lobbyId, playerDocumentId);
         const playerData = playerDocument.data();
         let commanderDamages = playerData.commanderDamages || [];
@@ -128,20 +140,11 @@ async function onClickCommanderDamageName(lobbyId, event, playerDocumentId, othe
 
         let commanderDamage = getCommanderDamageFromName(commanderDamages, otherPlayerName);
 
-        if (clickX < buttonWidth / 2) {
-            if (commanderDamage) {
-                commanderDamage.lifeToApply -= 1;
-            } else {
-                commanderDamage = new CommanderDamage(playerName, otherPlayerName, 0, -1);
-                commanderDamages.push(commanderDamage.toFirestoreObject());
-            }
+        if (commanderDamage) {
+            commanderDamage.lifeToApply += changeAmount;
         } else {
-            if (commanderDamage) {
-                commanderDamage.lifeToApply += 1;
-            } else {
-                commanderDamage = new CommanderDamage(playerName, otherPlayerName, 0, 1);
-                commanderDamages.push(commanderDamage.toFirestoreObject());
-            }
+            commanderDamage = new CommanderDamage(playerName, otherPlayerName, 0, changeAmount);
+            commanderDamages.push(commanderDamage.toFirestoreObject());
         }
 
         await updateCommanderDamage(lobbyId, playerDocumentId, commanderDamages);
@@ -154,13 +157,7 @@ async function onClickCommanderDamageName(lobbyId, event, playerDocumentId, othe
         await updateLobbyTimestamp({ lobbyId });
 
     } catch (error) {
-        console.error(`Error updating player attribute for ${playerDocumentId}:`, error);
-        
-        // Restore original state on error
-        playerFrame.disabled = originalDisabled;
-        playerFrame.textContent = originalText;
-        playerFrame.style.opacity = '';
-        playerFrame.style.cursor = '';
+        console.error(`Error updating commander damage for ${playerDocumentId}:`, error);
     }
 }
 
