@@ -62,6 +62,7 @@ const WARMUP_FUNCTIONS = [
   'warmUpFunctions',
   'heartbeat',
   'validateLobby',
+  'markExampleShown',
 ];
 
 // Track function activity
@@ -405,11 +406,17 @@ exports.savePlayerData = onCall({
   };
 
   try {
+    const userRef = getDb().collection('players').doc(userId);
+    
+    // Check if shown_example is already true
+    const userDoc = await userRef.get();
+    const shownExample = userDoc.exists && userDoc.data().shown_example === true;
+
     // Use set with merge option to create or update the document
-    await getDb().collection('players').doc(userId).set(playerData, { merge: true });
+    await userRef.set(playerData, { merge: true });
     trackWrite("savePlayerData - player data save");
     
-    return { success: true, message: 'Player data saved successfully' };
+    return { success: true, message: 'Player data saved successfully', shownExample };
   } catch (error) {
     console.error('Error saving player data:', error);
     throw new HttpsError('internal', 'Failed to save player data. Please try again.');
@@ -1017,5 +1024,24 @@ exports.recordPayInterest = onCall({
   } catch (error) {
     console.error('Error recording pay interest:', error);
     throw new HttpsError('internal', 'Failed to record interest. Please try again.');
+  }
+}));
+
+// Mark that the user has seen the usage example
+exports.markExampleShown = onCall({
+  cors: true
+}, withWarmup('markExampleShown')(async (request) => {
+  authenticateUser(request.auth);
+  const userId = request.auth.uid;
+  
+  try {
+    await getDb().collection('players').doc(userId).update({
+      shown_example: true
+    });
+    trackWrite("markExampleShown - update player");
+    return { success: true };
+  } catch (error) {
+    console.error('Error marking example as shown:', error);
+    throw new HttpsError('internal', 'Failed to update profile.');
   }
 }));
