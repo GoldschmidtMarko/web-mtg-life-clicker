@@ -13,9 +13,6 @@
   "firestore": {
     "rules": "firestore.rules"
   },
-  "dataconnect": {
-    "source": "dataconnect"
-  },
   "emulators": {
     "auth": {
       "port": 9099
@@ -25,9 +22,6 @@
     },
     "firestore": {
       "port": 8080
-    },
-    "dataconnect": {
-      "port": 9399
     },
     "hosting": {
       "port": 5000

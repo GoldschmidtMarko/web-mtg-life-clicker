@@ -24,13 +24,6 @@ kill_port_processes() {
         kill -9 $FIRESTORE_PID 2>/dev/null
     fi
     
-    # Check port 9399 (Data Connect emulator)
-    DATACONNECT_PID=$(lsof -ti :9399 2>/dev/null)
-    if [ ! -z "$DATACONNECT_PID" ]; then
-        echo "⚠️  Killing process using port 9399 (PID: $DATACONNECT_PID)"
-        kill -9 $DATACONNECT_PID 2>/dev/null
-    fi
-    
     # Check port 9099 (Auth emulator)
     AUTH_PID=$(lsof -ti :9099 2>/dev/null)
     if [ ! -z "$AUTH_PID" ]; then
