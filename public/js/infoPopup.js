@@ -11,10 +11,122 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
 
 const recordPayInterest = functions.httpsCallable('recordPayInterest');
 
+// Function to show usage example popup
+export function showUsageExamplePopup() {
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 20000;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    `;
+
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+        background-color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        max-width: 95%;
+        max-height: 95vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transform: scale(0.9);
+        transition: transform 0.3s ease-in-out;
+    `;
+
+    const title = document.createElement('h2');
+    title.textContent = 'Pro Tip: Display on a Big Screen';
+    title.style.cssText = `
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #1f2937;
+        margin: 0 0 15px 0;
+        text-align: center;
+    `;
+
+    const img = document.createElement('img');
+    img.src = 'images/usage_example.png';
+    img.alt = 'Usage Example';
+    img.style.cssText = `
+        max-width: 100%;
+        max-height: 70vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        border-radius: 8px;
+        border: 1px solid #eee;
+    `;
+
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Got it!';
+    closeButton.style.cssText = `
+        background-color: #4f46e5;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        margin-top: 20px;
+    `;
+    closeButton.onmouseover = () => closeButton.style.backgroundColor = '#4338ca';
+    closeButton.onmouseout = () => closeButton.style.backgroundColor = '#4f46e5';
+
+    popup.appendChild(title);
+    popup.appendChild(img);
+    popup.appendChild(closeButton);
+    backdrop.appendChild(popup);
+    document.body.appendChild(backdrop);
+
+    // Animation
+    requestAnimationFrame(() => {
+        backdrop.style.opacity = '1';
+        popup.style.transform = 'scale(1)';
+    });
+
+    const close = async () => {
+        backdrop.style.opacity = '0';
+        popup.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+            backdrop.remove();
+        }, 300);
+    };
+
+    closeButton.addEventListener('click', close);
+    backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) close();
+    });
+}
+
 class InfoPopup {
     constructor() {
         this.isOpen = false;
         this.popupElement = null;
+    }
+
+    addUsageExampleButton() {
+        const usageExampleButton = document.createElement('button');
+        usageExampleButton.id = 'usage-example-button';
+        usageExampleButton.className = 'fixed bottom-4 left-36 bg-green-600 hover:bg-green-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-105 z-40';
+        usageExampleButton.style.cssText = 'text-align: center; line-height: 48px;';
+        usageExampleButton.innerHTML = '<i class="fas fa-lightbulb text-lg" style="display: inline-block; vertical-align: middle; line-height: normal;"></i>';
+        usageExampleButton.onclick = showUsageExamplePopup;
+        usageExampleButton.title = 'Usage Example';
+
+        document.body.appendChild(usageExampleButton);
     }
 
     show(type = 'info') {
@@ -244,6 +356,7 @@ class InfoPopup {
 
 // Initialize and expose globally
 window.infoPopup = new InfoPopup();
+window.infoPopup.addUsageExampleButton();
 
 // Function to open the info popup
 function openInfoPopup() {

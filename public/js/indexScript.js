@@ -1,5 +1,6 @@
 import { Player } from './util/models.js';
 import { firebaseConfig } from './util/firebaseConfig.js';
+import { showUsageExamplePopup } from './infoPopup.js';
 
 // Initialize Firebase (only once per app)
 if (!firebase.apps.length) {
@@ -32,7 +33,6 @@ const createLobby = functions.httpsCallable('createLobby');
 const joinLobby = functions.httpsCallable('joinLobby');
 const savePlayerData = functions.httpsCallable('savePlayerData');
 const cleanupOldLobbies = functions.httpsCallable('cleanupOldLobbies');
-const markExampleShown = functions.httpsCallable('markExampleShown');
 
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -50,7 +50,7 @@ let currentUser = null;
 async function callSavePlayerData(user) {
     try {
         const result = await savePlayerData();
-        if (result.data && result.data.shownExample === false) {
+        if (result.data && result.data.showPopup) {
             showUsageExamplePopup();
         }
     } catch (error) {
@@ -58,112 +58,6 @@ async function callSavePlayerData(user) {
         // Don't show user-facing error for this background operation
         // The app will still function normally
     }
-}
-
-// Function to show usage example popup
-function showUsageExamplePopup() {
-    const backdrop = document.createElement('div');
-    backdrop.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.7);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 20000;
-        opacity: 0;
-        transition: opacity 0.3s ease-in-out;
-    `;
-
-    const popup = document.createElement('div');
-    popup.style.cssText = `
-        background-color: white;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-        max-width: 95%;
-        max-height: 95vh;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        transform: scale(0.9);
-        transition: transform 0.3s ease-in-out;
-    `;
-
-    const title = document.createElement('h2');
-    title.textContent = 'Pro Tip: Display on a Big Screen';
-    title.style.cssText = `
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #1f2937;
-        margin: 0 0 15px 0;
-        text-align: center;
-    `;
-
-    const img = document.createElement('img');
-    img.src = 'images/usage_example.png';
-    img.alt = 'Usage Example';
-    img.style.cssText = `
-        max-width: 100%;
-        max-height: 70vh;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        border-radius: 8px;
-        border: 1px solid #eee;
-    `;
-
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'Got it!';
-    closeButton.style.cssText = `
-        background-color: #4f46e5;
-        color: white;
-        border: none;
-        padding: 10px 24px;
-        border-radius: 6px;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s;
-        margin-top: 20px;
-    `;
-    closeButton.onmouseover = () => closeButton.style.backgroundColor = '#4338ca';
-    closeButton.onmouseout = () => closeButton.style.backgroundColor = '#4f46e5';
-
-    popup.appendChild(title);
-    popup.appendChild(img);
-    popup.appendChild(closeButton);
-    backdrop.appendChild(popup);
-    document.body.appendChild(backdrop);
-
-    // Animation
-    requestAnimationFrame(() => {
-        backdrop.style.opacity = '1';
-        popup.style.transform = 'scale(1)';
-    });
-
-    const close = async () => {
-        backdrop.style.opacity = '0';
-        popup.style.transform = 'scale(0.9)';
-        setTimeout(() => {
-            backdrop.remove();
-        }, 300);
-        
-        try {
-            await markExampleShown();
-        } catch (error) {
-            console.error('Failed to mark example as shown:', error);
-        }
-    };
-
-    closeButton.addEventListener('click', close);
-    backdrop.addEventListener('click', (e) => {
-        if (e.target === backdrop) close();
-    });
 }
 
 // Function to cleanup old lobbies in the background
@@ -398,11 +292,11 @@ if (createLobbyBtn) {
             showSignInWarning();
             return;
         }
-        
+
         // Store original button state
         const originalText = createLobbyBtn.textContent;
         const originalDisabled = createLobbyBtn.disabled;
-        
+
         try {
             // Set loading state
             createLobbyBtn.disabled = true;
@@ -430,13 +324,11 @@ if (createLobbyBtn) {
             window.location.href = 'lobby.html?lobbyId=' + lobbyCode;
         } catch (error) {
             console.error('Error creating lobby:', error);
-            showErrorMessage(error);
-            
-            // Restore original button state on error
+        } finally {
+            // Restore original button state
             createLobbyBtn.disabled = originalDisabled;
             createLobbyBtn.textContent = originalText;
             createLobbyBtn.style.opacity = '';
-            createLobbyBtn.style.cursor = '';
         }
     });
 }
@@ -515,5 +407,5 @@ if (joinLobbyBtn) {
     joinLobbyBtn.style.background = 'grey';
     joinLobbyBtn.style.cursor = 'not-allowed';
 }
-
 });
+

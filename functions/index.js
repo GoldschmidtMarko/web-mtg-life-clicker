@@ -62,7 +62,6 @@ const WARMUP_FUNCTIONS = [
   'warmUpFunctions',
   'heartbeat',
   'validateLobby',
-  'markExampleShown',
 ];
 
 // Track function activity
@@ -387,16 +386,16 @@ exports.savePlayerData = onCall({
 }, withWarmup('savePlayerData')(async (request) => {
   const data = request.data;
   const auth = request.auth;
-  
+
   if (!auth) {
-    throw new HttpsError('unauthenticated', 'User must be signed in.');
+    throw new HttpsError('unauthenticated', 'User must be authenticated.');
   }
-  
+
   const userId = auth.uid;
-  
+
   // Get user info from Firebase Auth token
   const userRecord = auth;
-  
+
   const playerData = {
     name: userRecord.token?.name || 'Unknown',
     email: userRecord.token?.email || '',
@@ -406,20 +405,32 @@ exports.savePlayerData = onCall({
   };
 
   try {
-    const userRef = getDb().collection('players').doc(userId);
-    
-    // Check if shown_example is already true
-    const userDoc = await userRef.get();
-    const shownExample = userDoc.exists && userDoc.data().shown_example === true;
+    const db = getDb();
+    const playerRef = db.collection('players').doc(userId);
+    const playerDoc = await playerRef.get();
 
-    // Use set with merge option to create or update the document
-    await userRef.set(playerData, { merge: true });
-    trackWrite("savePlayerData - player data save");
-    
-    return { success: true, message: 'Player data saved successfully', shownExample };
+    let showPopup = false;
+
+    if (!playerDoc.exists) {
+      playerData.registrationDate = FieldValue.serverTimestamp();
+      playerData.shownExample = true;
+      showPopup = true;
+    } else {
+      const existingData = playerDoc.data();
+      if (!existingData.registrationDate) {
+        playerData.registrationDate = FieldValue.serverTimestamp();
+      }
+      showPopup = existingData.shownExample === false;
+    }
+
+    // Update or create the player document
+    await playerRef.set(playerData, { merge: true });
+
+    // Return whether the example popup should be shown
+    return { success: true, message: 'Player data saved successfully.', showPopup };
   } catch (error) {
     console.error('Error saving player data:', error);
-    throw new HttpsError('internal', 'Failed to save player data. Please try again.');
+    throw new HttpsError('internal', 'Failed to save player data.');
   }
 }));
 
@@ -1027,21 +1038,3 @@ exports.recordPayInterest = onCall({
   }
 }));
 
-// Mark that the user has seen the usage example
-exports.markExampleShown = onCall({
-  cors: true
-}, withWarmup('markExampleShown')(async (request) => {
-  authenticateUser(request.auth);
-  const userId = request.auth.uid;
-  
-  try {
-    await getDb().collection('players').doc(userId).update({
-      shown_example: true
-    });
-    trackWrite("markExampleShown - update player");
-    return { success: true };
-  } catch (error) {
-    console.error('Error marking example as shown:', error);
-    throw new HttpsError('internal', 'Failed to update profile.');
-  }
-}));
