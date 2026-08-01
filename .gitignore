@@ -1,2 +1,6 @@
 public/js/util/firebaseConfig.js
 web-mtg-life-clicker-409305bd6744.json
+firebase-debug.log
+firestore-debug.log
+functions_python/venv/
+functions_python/__pycache__/
