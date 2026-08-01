@@ -4,3 +4,5 @@ firebase-debug.log
 firestore-debug.log
 functions_python/venv/
 functions_python/__pycache__/
+node_modules/
+public/css/tailwind.css
