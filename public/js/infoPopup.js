@@ -56,7 +56,7 @@ export function showUsageExamplePopup() {
     `;
 
     const img = document.createElement('img');
-    img.src = 'images/usage_example.png';
+    img.src = 'images/usage_example.webp';
     img.alt = 'Usage Example';
     img.style.cssText = `
         max-width: 100%;

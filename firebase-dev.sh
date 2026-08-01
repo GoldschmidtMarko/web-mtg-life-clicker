@@ -69,12 +69,13 @@ echo ""
 case "$1" in
     "start-emulators")
         echo "Starting Firebase emulators..."
+        npm run build:css
         kill_port_processes
         firebase emulators:start --token "$FIREBASE_TOKEN"
         ;;
     "test-functions")
         echo "Testing Firebase functions locally..."
-        cd functions && npm run serve
+        firebase emulators:start --only functions --token "$FIREBASE_TOKEN"
         ;;
     "deploy-functions")
         echo "Deploying Firebase functions..."
@@ -82,14 +83,17 @@ case "$1" in
         ;;
     "deploy-hosting")
         echo "Deploying Firebase hosting..."
+        npm run build:css
         firebase deploy --only hosting --token "$FIREBASE_TOKEN"
         ;;
     "deploy-all")
         echo "Deploying everything to Firebase..."
+        npm run build:css
         firebase deploy --token "$FIREBASE_TOKEN"
         ;;
     "serve-hosting")
         echo "Serving hosting locally..."
+        npm run build:css
         firebase serve --only hosting --token "$FIREBASE_TOKEN"
         ;;
     *)
