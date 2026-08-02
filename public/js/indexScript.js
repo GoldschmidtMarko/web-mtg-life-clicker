@@ -31,6 +31,7 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
 // Initialize Firebase Functions
 const createLobby = functions.httpsCallable('createLobby');
 const joinLobby = functions.httpsCallable('joinLobby');
+const getUserLobbies = functions.httpsCallable('getUserLobbies');
 const savePlayerData = functions.httpsCallable('savePlayerData');
 const cleanupOldLobbies = functions.httpsCallable('cleanupOldLobbies');
 
@@ -43,6 +44,11 @@ const joinLobbyBtn = document.getElementById('join-lobby-btn');
 const signInButton = document.getElementById('sign-in-button');
 const logoutButton = document.getElementById('logout-button');
 const joinLobbyUserName = document.getElementById('remote-player-name-input');
+const myLobbiesButton = document.getElementById('my-lobbies-button');
+const myLobbiesButtonLabel = document.getElementById('my-lobbies-button-label');
+const myLobbiesModal = document.getElementById('my-lobbies-modal');
+const myLobbiesList = document.getElementById('my-lobbies-list');
+const closeMyLobbiesModalButton = document.getElementById('close-my-lobbies-modal');
 
 let currentUser = null;
 
@@ -75,6 +81,139 @@ async function performLobbyCleanup() {
     }
 }
 
+// Function to join a lobby and redirect to it, shared by the manual join form
+// and the "Your Lobbies" quick-join rows.
+async function joinLobbyAndRedirect(lobbyCode, playerName) {
+    const player = new Player(
+        currentUser.uid,
+        playerName,
+        40,
+        0,
+        0,
+        0,
+        "#FFFFFF",
+        "#000000"
+    );
+    await joinLobby({ player: player.toFirestoreObject(), lobbyCode });
+    window.location.href = `/lobby.html?lobbyId=${lobbyCode}`;
+}
+
+// Turn an ISO timestamp into a short relative label like "5m ago"
+function formatRelativeTime(isoString) {
+    if (!isoString) return '';
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHours = Math.round(diffMin / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.round(diffHours / 24);
+    return `${diffDays}d ago`;
+}
+
+// Open/close the "Your Lobbies" popup
+function openMyLobbiesModal() {
+    if (!myLobbiesModal) return;
+    myLobbiesModal.classList.remove('hidden');
+    myLobbiesModal.classList.add('flex');
+    document.body.classList.add('modal-open');
+}
+
+function closeMyLobbiesModal() {
+    if (!myLobbiesModal) return;
+    myLobbiesModal.classList.add('hidden');
+    myLobbiesModal.classList.remove('flex');
+    document.body.classList.remove('modal-open');
+}
+
+// Render the list of lobbies the signed-in player created or joined
+function renderMyLobbies(lobbies) {
+    if (!myLobbiesButton || !myLobbiesList) return;
+
+    myLobbiesList.innerHTML = '';
+
+    if (!lobbies.length) {
+        myLobbiesButton.classList.add('hidden');
+        closeMyLobbiesModal();
+        return;
+    }
+
+    if (myLobbiesButtonLabel) {
+        myLobbiesButtonLabel.textContent = `Your Lobbies (${lobbies.length})`;
+    }
+
+    lobbies.forEach((lobby) => {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'chip w-full flex items-center justify-between gap-3 px-4 py-3 text-left';
+        row.innerHTML = `
+            <span class="min-w-0">
+                <span class="font-semibold block truncate lobby-row-code" style="color: var(--ink);"></span>
+                <span class="text-xs block truncate lobby-row-meta" style="color: var(--ink-dim);"></span>
+            </span>
+            <svg class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--ink-faint);">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+        `;
+
+        const hostLabel = lobby.isOwner ? 'Hosted by you' : `Hosted by ${lobby.ownerName || 'a player'}`;
+        const timeLabel = formatRelativeTime(lobby.lastUpdated);
+        row.querySelector('.lobby-row-code').textContent = lobby.code;
+        row.querySelector('.lobby-row-meta').textContent = timeLabel ? `${hostLabel} · updated ${timeLabel}` : hostLabel;
+
+        row.addEventListener('click', async () => {
+            if (!currentUser) {
+                showSignInWarning();
+                return;
+            }
+            row.disabled = true;
+            row.querySelector('.lobby-row-code').textContent = 'Joining...';
+            try {
+                const playerName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Player';
+                await joinLobbyAndRedirect(lobby.code, playerName);
+            } catch (error) {
+                console.error('Error joining lobby:', error);
+                showErrorMessage(error);
+                loadMyLobbies();
+            }
+        });
+
+        myLobbiesList.appendChild(row);
+    });
+
+    myLobbiesButton.classList.remove('hidden');
+}
+
+// Fetch and render the lobbies the signed-in player created or joined
+async function loadMyLobbies() {
+    if (!myLobbiesButton || !myLobbiesList) return;
+    try {
+        const result = await getUserLobbies();
+        renderMyLobbies(result.data.lobbies || []);
+    } catch (error) {
+        console.error('Error loading your lobbies:', error);
+        myLobbiesButton.classList.add('hidden');
+    }
+}
+
+// Event listeners for the "Your Lobbies" button and popup
+if (myLobbiesButton) {
+    myLobbiesButton.addEventListener('click', openMyLobbiesModal);
+}
+if (closeMyLobbiesModalButton) {
+    closeMyLobbiesModalButton.addEventListener('click', closeMyLobbiesModal);
+}
+if (myLobbiesModal) {
+    myLobbiesModal.addEventListener('click', (event) => {
+        if (event.target === myLobbiesModal) closeMyLobbiesModal();
+    });
+}
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && myLobbiesModal && !myLobbiesModal.classList.contains('hidden')) {
+        closeMyLobbiesModal();
+    }
+});
+
 // Listen for authentication state changes *inside* this listener
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
@@ -82,6 +221,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
 
         // Save player data to Firestore via backend function
         await callSavePlayerData(user);
+
+        // Load the lobbies this player created or joined
+        loadMyLobbies();
 
         // Enable buttons and hide sign-in button when authenticated
         if (createLobbyBtn) createLobbyBtn.disabled = false;
@@ -109,6 +251,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
         if (joinLobbyBtn) joinLobbyBtn.disabled = true;
         if (signInButton) signInButton.classList.remove('hidden');
         if (logoutButton) logoutButton.classList.add('hidden');
+        if (myLobbiesButton) myLobbiesButton.classList.add('hidden');
+        closeMyLobbiesModal();
     }
 });
 
@@ -329,20 +473,8 @@ if (joinLobbyBtn) {
             
             const playerName = joinLobbyUserName.value || "Player"
             const lobbyCode = lobbyCodeInput.value;
-            
-            const player = new Player(
-                currentUser.uid,
-                playerName,
-                40,
-                0,
-                0,
-                0,
-                "#FFFFFF",
-                "#000000"
-            );
-            await joinLobby({player: player.toFirestoreObject(), lobbyCode});
-            // Redirect to the lobby page, passing the lobby code
-            window.location.href = `/lobby.html?lobbyId=${lobbyCode}`;
+
+            await joinLobbyAndRedirect(lobbyCode, playerName);
 
         } catch (error) {
             console.error('Error joining lobby:', error);

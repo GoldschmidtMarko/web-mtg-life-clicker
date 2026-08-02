@@ -103,6 +103,22 @@
                 </button>
             </div>
         </div>
+
+        <!-- Your Lobbies: shown once signed in, if the player created or joined any -->
+        <button id="my-lobbies-button" class="btn btn-secondary btn-block hidden w-full max-w-sm sm:max-w-md mt-4">
+            <span id="my-lobbies-button-label">Your Lobbies</span>
+        </button>
+        </div>
+
+        <!-- Your Lobbies modal -->
+        <div id="my-lobbies-modal" class="modal-container hidden fixed inset-0 flex items-center justify-center z-50" style="background: var(--scrim);">
+            <div class="my-lobbies-modal-content panel p-6 sm:p-8 w-full max-w-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-bold" style="color: var(--ink);">Your Lobbies</h2>
+                    <button id="close-my-lobbies-modal" class="icon-btn" aria-label="Close">&times;</button>
+                </div>
+                <div id="my-lobbies-list" class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1"></div>
+            </div>
         </div>
 
         <!-- Footer -->

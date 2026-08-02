@@ -5,6 +5,7 @@ import string
 
 from firebase_admin import firestore
 from firebase_functions import https_fn
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from .common import Err, authenticate_user, is_number, now_ms
 from .firebase_app import db
@@ -39,7 +40,7 @@ def createLobby(request: https_fn.CallableRequest) -> dict:
         lobby_ref.set(new_lobby)
         track_write("createLobby - lobby creation")
 
-        lobby_ref.collection("players").document(user_id).set(player)
+        lobby_ref.collection("players").document(user_id).set({**player, "id": user_id})
         track_write("createLobby - player addition")
 
         return {"lobbyCode": lobby_code}
@@ -94,6 +95,44 @@ def joinLobby(request: https_fn.CallableRequest) -> dict:
     except Exception as error:
         print(f"Error joining lobby: {error}")
         raise https_fn.HttpsError(Err.INTERNAL, "Failed to join lobby. Please try again.")
+
+
+@https_fn.on_call()
+@with_warmup("getUserLobbies")
+def getUserLobbies(request: https_fn.CallableRequest) -> dict:
+    authenticate_user(request.auth)
+    user_id = request.auth.uid
+
+    player_docs = list(
+        db.collection_group("players").where(filter=FieldFilter("id", "==", user_id)).get()
+    )
+    track_read(f"getUserLobbies - {len(player_docs)} memberships for {user_id}")
+
+    lobbies = []
+    seen_codes = set()
+    for player_doc in player_docs:
+        lobby_ref = player_doc.reference.parent.parent
+        if lobby_ref is None or lobby_ref.id in seen_codes:
+            continue
+        seen_codes.add(lobby_ref.id)
+
+        lobby_doc = lobby_ref.get()
+        if not lobby_doc.exists:
+            continue
+
+        lobby_data = lobby_doc.to_dict()
+        last_updated = lobby_data.get("lastUpdated")
+        lobbies.append({
+            "code": lobby_ref.id,
+            "ownerId": lobby_data.get("ownerId"),
+            "ownerName": lobby_data.get("ownerName"),
+            "isOwner": lobby_data.get("ownerId") == user_id,
+            "lastUpdated": last_updated.isoformat() if last_updated else None,
+        })
+
+    lobbies.sort(key=lambda entry: entry["lastUpdated"] or "", reverse=True)
+
+    return {"lobbies": lobbies}
 
 
 @https_fn.on_call()

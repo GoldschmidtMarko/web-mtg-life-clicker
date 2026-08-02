@@ -190,8 +190,9 @@ body {
 
 /* Modal base styles - for content within modal containers */
 .settings-modal-content,
-.confirmation-modal-content, 
-.commander-modal-content {
+.confirmation-modal-content,
+.commander-modal-content,
+.my-lobbies-modal-content {
     position: relative; /* Relative positioning within flex container */
     margin: auto; /* Center within flex container */
     max-height: 90vh; /* Prevent modal from being too tall */
@@ -253,6 +254,7 @@ body {
     .settings-modal-content,
     .confirmation-modal-content,
     .commander-modal-content,
+    .my-lobbies-modal-content,
     .modal-content {
         max-width: calc(100vw - 2rem) !important;
         max-height: calc(100vh - 2rem) !important;
@@ -288,7 +290,8 @@ body.modal-open {
 /* Smooth modal animations */
 .settings-modal-content,
 .confirmation-modal-content,
-.commander-modal-content {
+.commander-modal-content,
+.my-lobbies-modal-content {
     animation: modalFadeIn 0.3s ease-out;
 }
 
