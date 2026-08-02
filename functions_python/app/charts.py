@@ -15,7 +15,7 @@ from .firebase_app import db
 from .warmup import track_read, with_warmup
 
 
-def _build_life_series(history_docs) -> dict[str, list[tuple[int, int]]]:
+def _build_life_series(history_docs, game_started_at) -> dict[str, list[tuple[int, int]]]:
     series: dict[str, list[tuple[int, int]]] = {}
     for doc in history_docs:
         entry_data = doc.to_dict() or {}
@@ -28,7 +28,11 @@ def _build_life_series(history_docs) -> dict[str, list[tuple[int, int]]]:
                 continue
             points = series.setdefault(name, [])
             if not points:
-                points.append((created_at, life_before))
+                # Anchor a player's first point at when the game actually
+                # started, not the timestamp of their first change - using
+                # the same timestamp for both would plot the "before" and
+                # "after" values on top of each other.
+                points.append((game_started_at or created_at, life_before))
             points.append((created_at, life_after))
     return series
 
@@ -69,16 +73,14 @@ def getLifeChangeChart(request: https_fn.CallableRequest) -> dict:
     if not game_id or not isinstance(game_id, str) or game_id.strip() == "":
         raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid gameId parameter")
 
-    history_ref = (
-        db.collection("lobbies").document(lobby_id)
-        .collection("games").document(game_id)
-        .collection("history")
-        .order_by("createdAt")
-    )
-    history_docs = list(history_ref.stream())
+    game_ref = db.collection("lobbies").document(lobby_id).collection("games").document(game_id)
+    game_doc = game_ref.get()
+    game_started_at = (game_doc.to_dict() or {}).get("startedAt") if game_doc.exists else None
+
+    history_docs = list(game_ref.collection("history").order_by("createdAt").stream())
     track_read(f"getLifeChangeChart - lobby {lobby_id} game {game_id}: {len(history_docs)} entries")
 
-    series = _build_life_series(history_docs)
+    series = _build_life_series(history_docs, game_started_at)
     if not series:
         raise https_fn.HttpsError(Err.NOT_FOUND, "No life changes recorded for this game yet.")
 

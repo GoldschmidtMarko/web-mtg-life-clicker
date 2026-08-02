@@ -228,11 +228,20 @@
         <div class="history-modal-content panel p-6 sm:p-8 w-full max-w-lg space-y-6">
             <h2 id="historyModalTitle" class="text-2xl sm:text-3xl font-bold text-center" style="color: var(--ink);">Life Changes</h2>
 
+            <div class="flex gap-2 justify-center">
+                <button id="historyViewChartBtn" class="btn btn-primary btn-sm">
+                    <span>Chart</span>
+                </button>
+                <button id="historyViewListBtn" class="btn btn-secondary btn-sm">
+                    <span>List</span>
+                </button>
+            </div>
+
             <div id="historyChartContainer" class="w-full flex justify-center items-center" style="min-height: 3rem;">
                 <!-- Chart image inserted dynamically -->
             </div>
 
-            <div id="historyList" class="flex flex-col w-full space-y-2" style="max-height: 30vh; overflow-y: auto;">
+            <div id="historyList" class="hidden flex-col w-full space-y-2" style="max-height: 50vh; overflow-y: auto;">
                 <!-- History entries added dynamically -->
             </div>
 

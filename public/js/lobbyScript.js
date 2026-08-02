@@ -1004,6 +1004,24 @@ function closeGamePickerModal() {
 // so switching games (or closing the modal) doesn't leak old listeners.
 let activeGameHistoryUnsubscribe = null;
 
+function setHistoryView(view) {
+    const chartContainer = document.getElementById('historyChartContainer');
+    const list = document.getElementById('historyList');
+    const chartBtn = document.getElementById('historyViewChartBtn');
+    const listBtn = document.getElementById('historyViewListBtn');
+    if (!chartContainer || !list || !chartBtn || !listBtn) return;
+
+    const showChart = view === 'chart';
+    chartContainer.classList.toggle('hidden', !showChart);
+    list.classList.toggle('hidden', showChart);
+    list.classList.toggle('flex', !showChart);
+
+    chartBtn.classList.toggle('btn-primary', showChart);
+    chartBtn.classList.toggle('btn-secondary', !showChart);
+    listBtn.classList.toggle('btn-primary', !showChart);
+    listBtn.classList.toggle('btn-secondary', showChart);
+}
+
 async function openGameHistoryModal(lobbyId, gameId, label) {
     const modal = document.getElementById('historyModal');
     const title = document.getElementById('historyModalTitle');
@@ -1011,6 +1029,7 @@ async function openGameHistoryModal(lobbyId, gameId, label) {
     const list = document.getElementById('historyList');
     if (!modal || !list || !chartContainer) return;
 
+    setHistoryView('chart');
     if (title) title.textContent = label || 'Life Changes';
     chartContainer.innerHTML = '';
     const chartLoading = document.createElement('p');
@@ -1094,12 +1113,20 @@ function setupHistoryButton(lobbyId) {
     const historyModal = document.getElementById('historyModal');
     const closeGamePickerButton = document.getElementById('closeGamePickerModal');
     const gamePickerModal = document.getElementById('gamePickerModal');
+    const historyViewChartBtn = document.getElementById('historyViewChartBtn');
+    const historyViewListBtn = document.getElementById('historyViewListBtn');
 
     if (historyButton) {
         historyButton.addEventListener('click', () => openGamePickerModal(lobbyId));
     }
     if (closeHistoryButton) {
         closeHistoryButton.addEventListener('click', closeHistoryModal);
+    }
+    if (historyViewChartBtn) {
+        historyViewChartBtn.addEventListener('click', () => setHistoryView('chart'));
+    }
+    if (historyViewListBtn) {
+        historyViewListBtn.addEventListener('click', () => setHistoryView('list'));
     }
     if (closeGamePickerButton) {
         closeGamePickerButton.addEventListener('click', closeGamePickerModal);
