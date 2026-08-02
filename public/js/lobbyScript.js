@@ -438,33 +438,41 @@ function populatePlayerGridDefault(snapshot) {
         }
         playerFrame.appendChild(lifeElement);
 
-        // Optional: show infect and commander damage alongside life, per player preference
-        if (playerData.showCombinedStats) {
+        // Optional: show infect and commander damage alongside life, per player
+        // preference. Enabled by default - only an explicit `false` opts out.
+        if (playerData.showCombinedStats !== false) {
             const extraFontSize = fontSize * 0.55;
 
             const infect = playerData.infect || 0;
-            const infectToApply = playerData.infectToApply || 0;
-            const infectElement = document.createElement('div');
-            infectElement.style.marginTop = '4px';
-            infectElement.style.fontSize = `${extraFontSize}px`;
-            infectElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
-            let infectHtml = `<span style="opacity: 0.8;">Infect:</span> <span style="font-weight: bold; color: #8b5cf6;">${infect}</span>`;
-            if (infectToApply > 0) {
-                infectHtml += ` <span style="color: #10b981; font-weight: bold;">(+${infectToApply})</span>`;
-            } else if (infectToApply < 0) {
-                infectHtml += ` <span style="color: #ef4444; font-weight: bold;">(${infectToApply})</span>`;
+            if (infect !== 0) {
+                const infectToApply = playerData.infectToApply || 0;
+                const infectElement = document.createElement('div');
+                infectElement.style.marginTop = '4px';
+                infectElement.style.fontSize = `${extraFontSize}px`;
+                infectElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
+                let infectHtml = `<span style="opacity: 0.8;">Infect:</span> <span style="font-weight: bold; color: #8b5cf6;">${infect}</span>`;
+                if (infectToApply > 0) {
+                    infectHtml += ` <span style="color: #10b981; font-weight: bold;">(+${infectToApply})</span>`;
+                } else if (infectToApply < 0) {
+                    infectHtml += ` <span style="color: #ef4444; font-weight: bold;">(${infectToApply})</span>`;
+                }
+                infectElement.innerHTML = infectHtml;
+                playerFrame.appendChild(infectElement);
             }
-            infectElement.innerHTML = infectHtml;
-            playerFrame.appendChild(infectElement);
 
+            // The relevant number for lethal tracking is the highest damage from
+            // any single commander (21+ from one commander is a loss), not the
+            // sum across different commanders.
             const commanderDamages = playerData.commanderDamages || [];
-            const totalCommanderDamage = commanderDamages.reduce((sum, cd) => sum + (cd.damage || 0), 0);
-            const commanderElement = document.createElement('div');
-            commanderElement.style.marginTop = '2px';
-            commanderElement.style.fontSize = `${extraFontSize}px`;
-            commanderElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
-            commanderElement.innerHTML = `<span style="opacity: 0.8;">Commander:</span> <span style="font-weight: bold;">${totalCommanderDamage}</span>`;
-            playerFrame.appendChild(commanderElement);
+            const maxCommanderDamage = commanderDamages.reduce((max, cd) => Math.max(max, cd.damage || 0), 0);
+            if (maxCommanderDamage !== 0) {
+                const commanderElement = document.createElement('div');
+                commanderElement.style.marginTop = '2px';
+                commanderElement.style.fontSize = `${extraFontSize}px`;
+                commanderElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
+                commanderElement.innerHTML = `<span style="opacity: 0.8;">Max Commander:</span> <span style="font-weight: bold;">${maxCommanderDamage}</span>`;
+                playerFrame.appendChild(commanderElement);
+            }
         }
 
         addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, playerFrameHeight)

@@ -12,6 +12,7 @@ class Player {
     this.fontColor = fontColor;
     this.infectToApply = infectToApply;
     this.commanderDamages = [];
+    this.showCombinedStats = true; // Show infect/commander damage on the main page by default
     // Add other player-related attributes here as needed
   }
 
@@ -25,7 +26,8 @@ class Player {
       infectToApply: this.infectToApply,
       backgroundColor: this.backgroundColor,
       fontColor: this.fontColor,
-      commanderDamages: this.commanderDamages.map(damage => damage.toFirestoreObject())
+      commanderDamages: this.commanderDamages.map(damage => damage.toFirestoreObject()),
+      showCombinedStats: this.showCombinedStats
     };
   }
 }

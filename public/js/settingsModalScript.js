@@ -37,10 +37,12 @@ export function openSettingsModal(userId, playerName, showCombinedStats) {
             usernameInput.value = playerName;
         }
 
-        // Populate the combined-stats checkbox with this player's current value
+        // Populate the combined-stats toggle with this player's current value.
+        // Enabled by default: only an explicit `false` (an existing player who
+        // opted out) should show as off.
         const showCombinedStatsInput = document.getElementById('showCombinedStats');
         if (showCombinedStatsInput) {
-            showCombinedStatsInput.checked = !!showCombinedStats;
+            showCombinedStatsInput.checked = showCombinedStats !== false;
         }
 
         currentUserId = userId; // Store the user ID
