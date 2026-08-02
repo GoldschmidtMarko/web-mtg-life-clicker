@@ -212,3 +212,50 @@ def rollDice(request: https_fn.CallableRequest) -> dict:
     track_write(f"rollDice - lobby {lobby_id}: d{sides} -> {result}")
 
     return {"success": True, "result": result, "sides": sides, "rolledAt": rolled_at}
+
+
+@https_fn.on_call()
+@with_warmup("logGameChanges")
+def logGameChanges(request: https_fn.CallableRequest) -> dict:
+    data = request.data or {}
+    lobby_id = data.get("lobbyId")
+    changes = data.get("changes")
+    authenticate_user(request.auth)
+
+    if not lobby_id or not isinstance(lobby_id, str) or lobby_id.strip() == "":
+        raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid lobbyId parameter")
+    if not isinstance(changes, list) or len(changes) == 0:
+        raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid changes parameter")
+
+    entries = []
+    for change in changes:
+        if not isinstance(change, dict) or not change.get("playerId"):
+            continue
+        commander_changes = []
+        for cd in change.get("commanderDamageChanges") or []:
+            if not isinstance(cd, dict):
+                continue
+            commander_changes.append({
+                "commanderName": cd.get("commanderName"),
+                "damageBefore": cd.get("damageBefore"),
+                "damageAfter": cd.get("damageAfter"),
+            })
+        entries.append({
+            "playerId": change.get("playerId"),
+            "playerName": change.get("playerName"),
+            "lifeBefore": change.get("lifeBefore"),
+            "lifeAfter": change.get("lifeAfter"),
+            "infectBefore": change.get("infectBefore"),
+            "infectAfter": change.get("infectAfter"),
+            "commanderDamageChanges": commander_changes,
+        })
+
+    if not entries:
+        raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "No valid change entries provided")
+
+    now = now_ms()
+    history_ref = db.collection("lobbies").document(lobby_id).collection("history").document()
+    history_ref.set({"createdAt": now, "entries": entries})
+    track_write(f"logGameChanges - lobby {lobby_id}: {len(entries)} player(s)")
+
+    return {"success": True, "historyId": history_ref.id}

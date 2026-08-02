@@ -91,6 +91,16 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
+    // Rules for the 'history' subcollection within 'lobbies' (game-change log)
+    match /lobbies/{lobbyId}/history/{historyId} {
+      // Allow any authenticated user to read the change log
+      allow read: if isAuthenticated();
+
+      // Entries are only ever written server-side by the logGameChanges
+      // Cloud Function (which uses the Admin SDK and bypasses these rules).
+      allow write: if false;
+    }
+
     // Rate limiting collection (optional - for Firestore-based rate limiting)
     match /rateLimits/{userId} {
       allow read, write: if isAuthenticated() && 

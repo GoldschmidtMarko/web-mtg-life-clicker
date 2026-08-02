@@ -39,6 +39,7 @@ const addPlayer = functions.httpsCallable('addPlayer');
 const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
 const startTimer = functions.httpsCallable('startTimer');
 const rollDice = functions.httpsCallable('rollDice');
+const logGameChanges = functions.httpsCallable('logGameChanges');
 const validateLobby = functions.httpsCallable('validateLobby');
 
 // Function to show spam/error warnings
@@ -597,6 +598,7 @@ function setupApplyButton(lobbyId) {
                 }
                 
                 const players = playersData.players;
+                const changesForLog = [];
                 for (const playerDocument of players) {
                     // playerDocument here is the raw data object, not a Firestore document
                     const playerData = playerDocument.data || playerDocument; // Handle both formats
@@ -605,29 +607,58 @@ function setupApplyButton(lobbyId) {
                     const currentInfect = playerData.infect || 0;
                     const infectToApply = playerData.infectToApply || 0;
                     const commanderDamages = playerData.commanderDamages || [];
-                    
+
                     var newLife = currentLife + lifeToApply;
                     var newInfect = currentInfect + infectToApply;
-                    
+
+                    const commanderDamageChanges = [];
                     for (const commanderDamage of commanderDamages) {
+                        if (commanderDamage.lifeToApply) {
+                            commanderDamageChanges.push({
+                                commanderName: commanderDamage.commanderName,
+                                damageBefore: commanderDamage.damage,
+                                damageAfter: commanderDamage.damage + commanderDamage.lifeToApply,
+                            });
+                        }
                         commanderDamage.damage += commanderDamage.lifeToApply;
                         newLife -= commanderDamage.lifeToApply;
                         commanderDamage.lifeToApply = 0;
                     }
-                    
-                    await updatePlayer({ 
-                        lobbyId, 
-                        playerId: playerDocument.id, 
-                        updates: { 
-                            life: newLife, 
-                            lifeToApply: 0, 
-                            infect: newInfect, 
-                            infectToApply: 0, 
-                            commanderDamages 
-                        } 
+
+                    await updatePlayer({
+                        lobbyId,
+                        playerId: playerDocument.id,
+                        updates: {
+                            life: newLife,
+                            lifeToApply: 0,
+                            infect: newInfect,
+                            infectToApply: 0,
+                            commanderDamages
+                        }
                     });
+
+                    if (newLife !== currentLife || newInfect !== currentInfect || commanderDamageChanges.length > 0) {
+                        changesForLog.push({
+                            playerId: playerDocument.id,
+                            playerName: playerData.name || 'Player',
+                            lifeBefore: currentLife,
+                            lifeAfter: newLife,
+                            infectBefore: currentInfect,
+                            infectAfter: newInfect,
+                            commanderDamageChanges,
+                        });
+                    }
                 }
-                
+
+                if (changesForLog.length > 0) {
+                    try {
+                        await logGameChanges({ lobbyId, changes: changesForLog });
+                    } catch (logError) {
+                        // Logging is a nice-to-have; don't block the actual apply on it.
+                        console.error('Error logging game changes:', logError);
+                    }
+                }
+
                 // Restore original button state on success
                 applyButton.disabled = originalDisabled;
                 applyButton.textContent = originalText;
@@ -848,6 +879,123 @@ function listenToLobbyDice(lobbyId) {
         lastSeenRolledAt = data.diceRolledAt;
 
         playDiceAnimation(data.diceResult, data.diceSides);
+    });
+}
+
+function formatDelta(before, after) {
+    const delta = after - before;
+    const sign = delta > 0 ? '+' : '';
+    return `${before} → ${after} (${sign}${delta})`;
+}
+
+function renderHistoryEntry(entry) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chip p-3 space-y-1';
+
+    const timeLabel = document.createElement('div');
+    timeLabel.className = 'text-xs';
+    timeLabel.style.color = 'var(--ink-faint)';
+    timeLabel.textContent = entry.createdAt
+        ? new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+    wrapper.appendChild(timeLabel);
+
+    (entry.entries || []).forEach(change => {
+        const parts = [];
+        if (change.lifeAfter !== change.lifeBefore) {
+            parts.push(`Life ${formatDelta(change.lifeBefore, change.lifeAfter)}`);
+        }
+        if (change.infectAfter !== change.infectBefore) {
+            parts.push(`Infect ${formatDelta(change.infectBefore, change.infectAfter)}`);
+        }
+        (change.commanderDamageChanges || []).forEach(cd => {
+            const label = cd.commanderName ? `${cd.commanderName} dmg` : 'Commander dmg';
+            parts.push(`${label} ${formatDelta(cd.damageBefore, cd.damageAfter)}`);
+        });
+        if (parts.length === 0) return;
+
+        const line = document.createElement('div');
+        line.style.color = 'var(--ink)';
+        line.style.fontSize = '0.9rem';
+
+        const nameEl = document.createElement('strong');
+        nameEl.textContent = change.playerName || 'Player';
+        line.appendChild(nameEl);
+        line.appendChild(document.createTextNode(': ' + parts.join(', ')));
+
+        wrapper.appendChild(line);
+    });
+
+    return wrapper;
+}
+
+function listenToLobbyHistory(lobbyId) {
+    const historyRef = firebase.firestore()
+        .collection('lobbies').doc(lobbyId)
+        .collection('history')
+        .orderBy('createdAt', 'desc')
+        .limit(50);
+
+    historyRef.onSnapshot(snapshot => {
+        const historyList = document.getElementById('historyList');
+        if (!historyList) return;
+        historyList.innerHTML = '';
+
+        if (snapshot.empty) {
+            const empty = document.createElement('p');
+            empty.className = 'text-sm text-center';
+            empty.style.color = 'var(--ink-faint)';
+            empty.textContent = 'No changes logged yet.';
+            historyList.appendChild(empty);
+            return;
+        }
+
+        snapshot.forEach(doc => {
+            historyList.appendChild(renderHistoryEntry(doc.data()));
+        });
+    }, error => {
+        console.error('Error listening to lobby history:', error);
+    });
+}
+
+function openHistoryModal() {
+    const historyModal = document.getElementById('historyModal');
+    if (!historyModal) return;
+    historyModal.classList.remove('hidden');
+    historyModal.classList.add('flex');
+    document.body.classList.add('modal-open');
+}
+
+function closeHistoryModal() {
+    const historyModal = document.getElementById('historyModal');
+    if (!historyModal) return;
+    historyModal.classList.add('hidden');
+    historyModal.classList.remove('flex');
+    document.body.classList.remove('modal-open');
+}
+
+function setupHistoryButton() {
+    const historyButton = document.getElementById('history-button');
+    const closeButton = document.getElementById('closeHistoryModal');
+    const historyModal = document.getElementById('historyModal');
+
+    if (historyButton) {
+        historyButton.addEventListener('click', openHistoryModal);
+    }
+    if (closeButton) {
+        closeButton.addEventListener('click', closeHistoryModal);
+    }
+    if (historyModal) {
+        historyModal.addEventListener('click', (event) => {
+            if (event.target === historyModal) {
+                closeHistoryModal();
+            }
+        });
+    }
+    window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && historyModal && !historyModal.classList.contains('hidden')) {
+            closeHistoryModal();
+        }
     });
 }
 
@@ -1088,6 +1236,7 @@ if (lobbyId) {
             setupPlayerListener(lobbyId);
             listenToLobbyTimer(lobbyId);
             listenToLobbyDice(lobbyId);
+            listenToLobbyHistory(lobbyId);
         } else {
             console.error("Lobby not found!");
             window.location.href = 'index.html';
@@ -1110,6 +1259,7 @@ function initializeControls(lobbyId) {
     setupAddDummyPlayerButton(lobbyId);
     setupTimerButton(lobbyId);
     setupDiceButton(lobbyId);
+    setupHistoryButton();
 }
 
 function setupExitLobbyButton() {
