@@ -73,8 +73,19 @@ def joinLobby(request: https_fn.CallableRequest) -> dict:
         if not lobby_doc.exists:
             raise https_fn.HttpsError(Err.NOT_FOUND, "Lobby not found. Please check the lobby code.")
 
-        player_data = {**player, "id": player_id}
-        lobby_ref.collection("players").document(player_id).set(player_data)
+        player_ref = lobby_ref.collection("players").document(player_id)
+
+        @firestore.transactional
+        def _run(transaction: firestore.Transaction) -> None:
+            existing = player_ref.get(transaction=transaction)
+            if existing.exists:
+                # Rejoining with the same id: only the name is meant to change.
+                # Life, colors, and commander damage carry over from the existing session.
+                transaction.update(player_ref, {"name": player.get("name") or "Player"})
+            else:
+                transaction.set(player_ref, {**player, "id": player_id})
+
+        _run(db.transaction())
         track_write("joinLobby - player addition")
 
         return {"success": True, "lobbyCode": lobby_code}
