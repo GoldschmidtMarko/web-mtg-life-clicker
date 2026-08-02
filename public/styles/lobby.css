@@ -32,20 +32,6 @@ body {
     font-size: clamp(0.875rem, 2.5vw, 1.25rem);
 }
 
-#exit-lobby-button {
-    font-size: clamp(0.625rem, 1.5vw, 0.875rem);
-    padding: clamp(0.25rem, 1vw, 0.5rem) clamp(0.5rem, 1.5vw, 1rem);
-}
-
-#settings-button {
-    font-size: clamp(0.625rem, 1.5vw, 0.875rem);
-    padding: clamp(0.25rem, 1vw, 0.5rem);
-}
-
-#settings-button i {
-    font-size: clamp(0.625rem, 1.5vw, 0.875rem);
-}
-
 /* Modern lobby enhancements */
 .player-frame {
     display: flex;
@@ -53,15 +39,13 @@ body {
     font-size: 4vh; /* font scales with viewport height */
     justify-content: center;
     align-items: center;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    border: 2px solid var(--border);
     height: 100%;
     padding: 10px;
     position: relative;
     overflow: hidden; /* Ensure overlay stays inside */
     border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-md);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     /* Ensure minimum height for mobile */
     min-height: 80px;
@@ -71,8 +55,8 @@ body {
 
 .player-frame:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--border-strong);
 }
 
 .settings-button,
@@ -113,8 +97,8 @@ body {
 .dot {
     height: 16px;
     width: 16px;
-    background-color: rgba(255, 255, 255, 0.3);
-    border: 2px solid rgba(255, 255, 255, 0.5);
+    background-color: var(--border-strong);
+    border: 2px solid var(--border);
     border-radius: 50%;
     display: inline-block;
     margin: 0 4px;
@@ -123,14 +107,14 @@ body {
 }
 
 .dot:hover {
-    background-color: rgba(255, 255, 255, 0.5);
+    background-color: var(--ink-faint);
     transform: scale(1.2);
 }
 
 .dot.filled {
-    background: linear-gradient(135deg, #3B82F6, #8B5CF6);
-    border: 2px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+    background: var(--accent);
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 12px var(--focus-ring);
 }
 
 /* Enhanced overlay effects */
@@ -186,34 +170,19 @@ body {
     transform: translate(-50%, -50%) rotate(840deg);
     width: 80px;
     height: 80px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: var(--accent);
+    border: 2px solid var(--border);
     border-radius: 16px;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
     display: flex;
     justify-content: center;
     align-items: center;
     font-size: 3em;
     font-weight: bold;
-    color: white;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    color: var(--accent-ink);
+    box-shadow: var(--shadow-lg);
     z-index: 1000;
     display: none;
     transition: all 0.3s ease;
-}
-
-/* Professional gradient backgrounds for key elements */
-.bg-clip-text {
-    -webkit-background-clip: text;
-    background-clip: text;
-}
-
-/* Enhanced modal styles */
-.modal-content {
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
 }
 
 /* Mobile-specific adjustments for lobby */
@@ -236,9 +205,6 @@ body {
     
     #player-grid {
         gap: 0.75rem;
-        /* Use available viewport height more efficiently */
-        max-height: calc(100svh - 200px); /* Reserve space for controls */
-        overflow-y: auto; /* Allow internal scrolling */
     }
     
     .player-frame {
@@ -257,16 +223,10 @@ body {
         gap: 0.75rem;
     }
     
-    #bottom-controls button {
+    #bottom-controls button:not(.icon-btn) {
         padding: 0.5rem 1rem;
         font-size: 0.875rem;
     }
-}
-
-/* Additional constraint for player grid on all screen sizes */
-#player-grid {
-    max-height: calc(100vh - 240px); /* Ensure grid doesn't overflow viewport */
-    overflow-y: auto; /* Allow internal scrolling when needed */
 }
 
 /* Landscape mobile orientation adjustments */
@@ -313,7 +273,9 @@ body {
     }
     
     /* Improve modal touch interactions */
-    .modal-content button {
+    .confirmation-modal-content button,
+    .settings-modal-content button,
+    .commander-modal-content button {
         min-height: 44px;
         padding: 0.75rem 1rem;
     }

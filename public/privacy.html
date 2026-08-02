@@ -2,280 +2,130 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <script src="js/util/themeInit.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <meta name="description" content="Privacy policy for MTG Life Clicker - How we protect and handle your data in our Magic: The Gathering life counter application.">
     <meta name="keywords" content="MTG Life Clicker, privacy policy, data protection, GDPR, Magic The Gathering">
     <meta name="author" content="MTG Life Clicker">
     <meta name="robots" content="index, follow">
-    <meta name="theme-color" content="#6366f1">
-    
+    <meta name="theme-color" content="#6d5efc">
+
     <!-- Favicon -->
-    <link rel="icon" type="image/jpeg" href="./images/icon.jpg">
-    <link rel="shortcut icon" type="image/jpeg" href="./images/icon.jpg">
-    <link rel="apple-touch-icon" href="./images/icon.jpg">
-    
+    <link rel="icon" type="image/png" href="./images/icon.png">
+    <link rel="shortcut icon" type="image/png" href="./images/icon.png">
+    <link rel="apple-touch-icon" href="./images/icon.png">
+
     <title>Privacy Policy - MTG Life Clicker</title>
+    <link rel="stylesheet" href="./css/tailwind.css">
+    <link rel="stylesheet" href="./css/theme.css">
     <link rel="stylesheet" href="./style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { initThemeToggle } from './js/util/theme.js';
+        document.addEventListener('DOMContentLoaded', () => initThemeToggle());
+    </script>
 </head>
-<body class="m-0 p-0 w-full overflow-x-hidden">
-    <!-- Professional hero section with subtle animations -->
-    <div class="relative flex flex-col items-center justify-start p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 lg:space-y-10 min-h-screen-dynamic w-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden">
-        
-        <!-- Animated background elements -->
-        <div class="absolute inset-0 overflow-hidden pointer-events-none">
-            <div class="absolute -top-4 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob"></div>
-            <div class="absolute -top-4 -right-4 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-2000"></div>
-            <div class="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-4000"></div>
+<body class="m-0 p-0 w-full overflow-x-hidden min-h-screen-dynamic" style="justify-content: flex-start;">
+    <div class="flex flex-col items-center px-4 sm:px-6 py-8 sm:py-12 w-full">
+
+        <div class="w-full max-w-2xl flex items-center justify-between mb-8">
+            <a href="index.html" class="btn btn-ghost btn-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span>Back</span>
+            </a>
+            <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="Toggle day and night theme" title="Toggle theme">
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="4"></circle>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+                </svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
         </div>
 
-        <div class="relative z-10 w-full px-4 sm:px-6 py-8">
-            <div class="container mx-auto max-w-4xl">
-            <div class="backdrop-blur-lg bg-white/10 border border-white/20 text-white p-6 sm:p-8 lg:p-12 rounded-3xl shadow-2xl">
-                <!-- Professional header -->
-                <div class="text-center mb-12">
-                    <div class="mb-6">
-                        <i class="fas fa-shield-alt text-6xl text-green-400 mb-4"></i>
+        <div class="w-full max-w-2xl">
+            <h1 class="text-3xl sm:text-4xl font-bold mb-2" style="color: var(--ink);">Privacy Policy</h1>
+            <p class="text-sm mb-10" style="color: var(--ink-dim);">Your data protection &amp; privacy rights</p>
+
+            <div class="space-y-10" style="color: var(--ink-dim);">
+                <section>
+                    <h2 class="text-lg font-bold mb-3" style="color: var(--ink);">Contact information</h2>
+                    <div class="space-y-2 text-sm">
+                        <p><strong style="color: var(--ink);">Data controller:</strong> Marko</p>
+                        <p><strong style="color: var(--ink);">Email:</strong> <a href="mailto:mtglifeclicker@gmail.com" class="hover:underline" style="color: var(--accent);">mtglifeclicker@gmail.com</a></p>
                     </div>
-                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black mb-4 bg-gradient-to-r from-white via-green-200 to-green-400 bg-clip-text text-transparent leading-tight">
-                        Privacy Policy
-                    </h1>
-                    <p class="text-lg sm:text-xl text-green-200 font-light tracking-wide opacity-90">
-                        Your Data Protection & Privacy Rights
-                    </p>
-                </div>
-            
-                <div class="space-y-8">
-                    <section>
-                        <h2 class="text-2xl sm:text-3xl font-bold mb-6 text-green-300 flex items-center">
-                            <i class="fas fa-address-card mr-3 text-green-400"></i>
-                            Contact Information
-                        </h2>
-                        <div class="backdrop-blur-sm bg-white/5 border border-white/10 p-6 rounded-2xl">
-                            <div class="grid gap-4">
-                                <div class="flex items-center">
-                                    <i class="fas fa-user mr-3 text-green-400"></i>
-                                    <span><strong class="text-green-300">Data Controller:</strong> Marko</span>
-                                </div>
-                                <div class="flex items-center">
-                                    <i class="fas fa-envelope mr-3 text-green-400"></i>
-                                    <span><strong class="text-green-300">Email:</strong> 
-                                        <a href="mailto:mtglifeclicker@gmail.com" class="text-blue-300 hover:text-blue-200 transition-colors">
-                                            mtglifeclicker@gmail.com
-                                        </a>
-                                    </span>
-                                </div>
+                </section>
+
+                <section>
+                    <h2 class="text-lg font-bold mb-3" style="color: var(--ink);">What data we collect</h2>
+                    <p class="text-sm mb-3">When you use this website, we collect:</p>
+                    <ul class="text-sm space-y-2 list-disc list-inside">
+                        <li><strong style="color: var(--ink);">Google account info</strong> &mdash; name, email, user ID when you sign in</li>
+                        <li><strong style="color: var(--ink);">Game data</strong> &mdash; player preferences, game state, lobby participation</li>
+                        <li><strong style="color: var(--ink);">Technical data</strong> &mdash; IP address, browser info (via Google Analytics)</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 class="text-lg font-bold mb-3" style="color: var(--ink);">How we use your data</h2>
+                    <ul class="text-sm space-y-2 list-disc list-inside">
+                        <li>To authenticate you and keep you signed in</li>
+                        <li>To save your game preferences and data</li>
+                        <li>To provide multiplayer lobby functionality</li>
+                        <li>To analyze website performance and improve user experience</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 class="text-lg font-bold mb-4" style="color: var(--ink);">Third party services</h2>
+
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-sm font-bold mb-2" style="color: var(--ink);">Google Firebase</h3>
+                            <p class="text-sm mb-2">We use Google Firebase for user authentication, database storage (Firestore), and website hosting.</p>
+                            <div class="alert alert-info">
+                                Firebase processes your data according to Google's privacy policy:
+                                <a href="https://policies.google.com/privacy" class="hover:underline" style="color: var(--accent);" target="_blank" rel="noopener">Google Privacy Policy</a>
                             </div>
                         </div>
-                    </section>
 
-                    <section>
-                        <h2 class="text-2xl sm:text-3xl font-bold mb-6 text-green-300 flex items-center">
-                            <i class="fas fa-database mr-3 text-green-400"></i>
-                            What Data We Collect
-                        </h2>
-                        <div class="backdrop-blur-sm bg-white/5 border border-white/10 p-6 rounded-2xl">
-                            <p class="mb-6 text-green-200">When you use this website, we collect:</p>
-                            <div class="space-y-4">
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-google text-xl text-red-400 mt-1"></i>
-                                    <div>
-                                        <strong class="text-green-300">Google Account Info:</strong>
-                                        <p class="text-sm text-green-200 mt-1">Name, email, user ID when you sign in</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-gamepad text-xl text-purple-400 mt-1"></i>
-                                    <div>
-                                        <strong class="text-green-300">Game Data:</strong>
-                                        <p class="text-sm text-green-200 mt-1">Player preferences, game state, lobby participation</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-chart-line text-xl text-blue-400 mt-1"></i>
-                                    <div>
-                                        <strong class="text-green-300">Technical Data:</strong>
-                                        <p class="text-sm text-green-200 mt-1">IP address, browser info (via Google Analytics)</p>
-                                    </div>
-                                </div>
+                        <div>
+                            <h3 class="text-sm font-bold mb-2" style="color: var(--ink);">Google Analytics</h3>
+                            <p class="text-sm mb-2">We use Google Analytics to understand how people use our website.</p>
+                            <div class="alert alert-info">
+                                You can opt out: <a href="https://tools.google.com/dlpage/gaoptout" class="hover:underline" style="color: var(--accent);" target="_blank" rel="noopener">GA Opt-out Browser Add-on</a>
                             </div>
-                        </div>
-                    </section>
-
-                    <section>
-                        <h2 class="text-2xl sm:text-3xl font-bold mb-6 text-green-300 flex items-center">
-                            <i class="fas fa-cogs mr-3 text-green-400"></i>
-                            How We Use Your Data
-                        </h2>
-                        <div class="backdrop-blur-sm bg-white/5 border border-white/10 p-6 rounded-2xl">
-                            <div class="space-y-4">
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-key text-orange-400 mt-1"></i>
-                                    <span class="text-green-200">To authenticate you and keep you signed in</span>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-save text-blue-400 mt-1"></i>
-                                    <span class="text-green-200">To save your game preferences and data</span>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-users text-purple-400 mt-1"></i>
-                                    <span class="text-green-200">To provide multiplayer lobby functionality</span>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-chart-bar text-green-400 mt-1"></i>
-                                    <span class="text-green-200">To analyze website performance and improve user experience</span>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section>
-                        <h2 class="text-2xl sm:text-3xl font-bold mb-6 text-green-300 flex items-center">
-                            <i class="fas fa-handshake mr-3 text-green-400"></i>
-                            Third Party Services
-                        </h2>
-                        <div class="space-y-6">
-                            <div class="backdrop-blur-sm bg-white/5 border border-white/10 p-6 rounded-2xl">
-                                <div class="flex items-start space-x-4 mb-4">
-                                    <i class="fab fa-google text-3xl text-red-400"></i>
-                                    <div>
-                                        <h3 class="text-xl font-bold text-green-300 mb-2">Google Firebase</h3>
-                                        <p class="text-green-200 mb-3">We use Google Firebase for:</p>
-                                    </div>
-                                </div>
-                                <div class="ml-12 space-y-3">
-                                    <div class="flex items-center space-x-3">
-                                        <i class="fas fa-shield-alt text-orange-400"></i>
-                                        <span class="text-green-200">User authentication (Firebase Auth)</span>
-                                    </div>
-                                    <div class="flex items-center space-x-3">
-                                        <i class="fas fa-database text-blue-400"></i>
-                                        <span class="text-green-200">Database storage (Firestore)</span>
-                                    </div>
-                                    <div class="flex items-center space-x-3">
-                                        <i class="fas fa-server text-purple-400"></i>
-                                        <span class="text-green-200">Website hosting</span>
-                                    </div>
-                                    <div class="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                                        <p class="text-sm text-yellow-200">
-                                            <i class="fas fa-info-circle mr-2"></i>
-                                            Firebase processes your data according to Google's privacy policy: 
-                                            <a href="https://policies.google.com/privacy" class="text-blue-300 hover:text-blue-200 underline transition-colors" target="_blank">
-                                                Google Privacy Policy
-                                            </a>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="backdrop-blur-sm bg-white/5 border border-white/10 p-6 rounded-2xl">
-                                <div class="flex items-start space-x-4 mb-4">
-                                    <i class="fab fa-google text-3xl text-blue-400"></i>
-                                    <div>
-                                        <h3 class="text-xl font-bold text-green-300 mb-2">Google Analytics</h3>
-                                        <p class="text-green-200 mb-3">We use Google Analytics to understand how people use our website.</p>
-                                    </div>
-                                </div>
-                                <div class="ml-12">
-                                    <div class="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                                        <p class="text-sm text-blue-200">
-                                            <i class="fas fa-ban mr-2"></i>
-                                            You can opt out: 
-                                            <a href="https://tools.google.com/dlpage/gaoptout" class="text-blue-300 hover:text-blue-200 underline transition-colors" target="_blank">
-                                                GA Opt-out Browser Add-on
-                                            </a>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section>
-                        <h2 class="text-2xl sm:text-3xl font-bold mb-6 text-green-300 flex items-center">
-                            <i class="fas fa-user-shield mr-3 text-green-400"></i>
-                            Your Rights
-                        </h2>
-                        <div class="backdrop-blur-sm bg-white/5 border border-white/10 p-6 rounded-2xl">
-                            <div class="space-y-4">
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-eye text-blue-400 mt-1"></i>
-                                    <span class="text-green-200"><strong class="text-green-300">Access:</strong> Request a copy of your personal data</span>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-edit text-yellow-400 mt-1"></i>
-                                    <span class="text-green-200"><strong class="text-green-300">Correction:</strong> Update or correct your information</span>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-trash text-red-400 mt-1"></i>
-                                    <span class="text-green-200"><strong class="text-green-300">Deletion:</strong> Request removal of your data</span>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-ban text-orange-400 mt-1"></i>
-                                    <span class="text-green-200"><strong class="text-green-300">Withdraw Consent:</strong> Stop using the website at any time</span>
-                                </div>
-                            </div>
-                            <div class="mt-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                                <p class="text-green-200">
-                                    <i class="fas fa-envelope mr-2 text-green-400"></i>
-                                    Contact <a href="mailto:mtglifeclicker@gmail.com" class="text-blue-300 hover:text-blue-200 underline transition-colors">mtglifeclicker@gmail.com</a> to exercise your rights
-                                </p>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section>
-                        <h2 class="text-2xl sm:text-3xl font-bold mb-6 text-green-300 flex items-center">
-                            <i class="fas fa-clock mr-3 text-green-400"></i>
-                            Data Retention
-                        </h2>
-                        <div class="backdrop-blur-sm bg-white/5 border border-white/10 p-6 rounded-2xl">
-                            <div class="space-y-4">
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-user-circle text-purple-400 mt-1"></i>
-                                    <div>
-                                        <strong class="text-green-300">Account Data:</strong>
-                                        <p class="text-sm text-green-200 mt-1">Stored until you request deletion</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-gamepad text-blue-400 mt-1"></i>
-                                    <div>
-                                        <strong class="text-green-300">Game Sessions:</strong>
-                                        <p class="text-sm text-green-200 mt-1">Automatically deleted after 30 days of inactivity</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-start space-x-3">
-                                    <i class="fas fa-chart-line text-orange-400 mt-1"></i>
-                                    <div>
-                                        <strong class="text-green-300">Analytics Data:</strong>
-                                        <p class="text-sm text-green-200 mt-1">Retained up to 26 months (Google default)</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- Footer section -->
-                    <div class="mt-12 pt-8 border-t border-white/10">
-                        <div class="text-center">
-                            <div class="mb-6">
-                                <p class="text-sm text-green-300/70">
-                                    <i class="fas fa-calendar-alt mr-2"></i>
-                                    Last updated: January 2025
-                                </p>
-                            </div>
-                            
-                            <!-- Back button -->
-                            <a href="index.html" class="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-                                <i class="fas fa-arrow-left mr-3 group-hover:-translate-x-1 transition-transform duration-300"></i>
-                                Back to MTG Life Clicker
-                                <i class="fas fa-home ml-3 group-hover:scale-110 transition-transform duration-300"></i>
-                            </a>
                         </div>
                     </div>
-                </div>
+                </section>
+
+                <section>
+                    <h2 class="text-lg font-bold mb-3" style="color: var(--ink);">Your rights</h2>
+                    <ul class="text-sm space-y-2 list-disc list-inside mb-4">
+                        <li><strong style="color: var(--ink);">Access:</strong> Request a copy of your personal data</li>
+                        <li><strong style="color: var(--ink);">Correction:</strong> Update or correct your information</li>
+                        <li><strong style="color: var(--ink);">Deletion:</strong> Request removal of your data</li>
+                        <li><strong style="color: var(--ink);">Withdraw consent:</strong> Stop using the website at any time</li>
+                    </ul>
+                    <div class="alert alert-success">
+                        Contact <a href="mailto:mtglifeclicker@gmail.com" class="hover:underline" style="color: var(--ink);">mtglifeclicker@gmail.com</a> to exercise your rights.
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="text-lg font-bold mb-3" style="color: var(--ink);">Data retention</h2>
+                    <ul class="text-sm space-y-2 list-disc list-inside">
+                        <li><strong style="color: var(--ink);">Account data:</strong> Stored until you request deletion</li>
+                        <li><strong style="color: var(--ink);">Game sessions:</strong> Automatically deleted after 30 days of inactivity</li>
+                        <li><strong style="color: var(--ink);">Analytics data:</strong> Retained up to 26 months (Google default)</li>
+                    </ul>
+                </section>
+            </div>
+
+            <div class="mt-12 pt-6 text-center text-xs" style="color: var(--ink-faint); border-top: 1px solid var(--border);">
+                Last updated: January 2025
             </div>
         </div>
     </div>
