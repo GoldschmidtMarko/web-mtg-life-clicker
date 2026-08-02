@@ -1,6 +1,7 @@
-const diceButton = document.getElementById('dice');
-const diceEyesInput = document.getElementById('dice-eyes');
-const lobbyContainer = document.getElementById('lobby-container'); // Assuming lobby-container is your main container
+const lobbyContainer = document.getElementById('lobby-container');
+
+// How long the dice stays on screen (fully settled) before it auto-dismisses.
+const AUTO_HIDE_MS = 5000;
 
 // Helper function to extract rotation from a 2D transform matrix
 function getRotationDegrees(matrix) {
@@ -8,37 +9,44 @@ function getRotationDegrees(matrix) {
     const values = matrix.split('(')[1].split(')')[0].split(',');
     const a = values[0];
     const b = values[1];
-    let angle = Math.round(Math.atan2(b, a) * (180/Math.PI));
+    let angle = Math.round(Math.atan2(b, a) * (180 / Math.PI));
     return (angle < 0) ? angle + 360 : angle;
 }
 
-diceButton.addEventListener('click', () => {
-    const numberOfEyes = parseInt(diceEyesInput.value, 10) || 6;
-    let finalResult = Math.floor(Math.random() * numberOfEyes) + 1;
+function removeDice(newDice) {
+    if (!newDice.isConnected) return;
+    newDice.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+    newDice.style.opacity = '0';
+    newDice.style.transform += ' scale(0.7)';
+    setTimeout(() => newDice.remove(), 300);
+}
 
+// Plays the dice-roll animation for a result that has already been decided
+// (server-authoritative, so every viewer in the lobby plays the exact same
+// roll in sync). `finalResult` and `numberOfEyes` come from the lobby doc.
+export function playDiceAnimation(finalResult, numberOfEyes) {
     // --- Create a new dice element ---
     const newDice = document.createElement('div');
-    newDice.classList.add('dice-animation-element'); // Use a more specific class name
-    // Add basic styling using inline styles or prefer a CSS class
+    newDice.classList.add('dice-animation-element');
     newDice.style.position = 'fixed';
-    newDice.style.width = '80px';
-    newDice.style.height = '80px';
-    newDice.style.backgroundColor = 'white';
-    newDice.style.borderRadius = '10px';
+    newDice.style.width = '100px';
+    newDice.style.height = '100px';
+    newDice.style.background = 'linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%)';
+    newDice.style.borderRadius = '18px';
     newDice.style.display = 'flex';
     newDice.style.justifyContent = 'center';
     newDice.style.alignItems = 'center';
-    newDice.style.fontSize = '3em';
+    newDice.style.fontSize = '3.4em';
     newDice.style.fontWeight = 'bold';
     newDice.style.color = 'black';
-    newDice.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
+    newDice.style.boxShadow = '0 0 0 rgba(139, 92, 246, 0)';
     newDice.style.zIndex = '1000';
-
 
     // --- Generate random values for animation ---
     const startLeft = Math.random() * 20;
-    const bounce1Height = Math.random() * 20 + 30;
-    const bounce2Height = Math.random() * 15 + 50;
+    const bounce1Height = Math.random() * 20 + 25;
+    const bounce2Height = Math.random() * 15 + 40;
+    const bounce3Height = Math.random() * 15 + 55;
 
     // --- Generate random values for final position ---
     const baseFinalLeft = 60 + Math.random() * 30;
@@ -47,21 +55,24 @@ diceButton.addEventListener('click', () => {
     const finalOffsetX = (Math.random() - 0.5) * 20;
     const finalOffsetY = (Math.random() - 0.5) * 20;
 
-
+    // More bounces and more total rotation than before for a bigger, more
+    // dramatic flight before it settles.
     const keyframes = [
-        { left: `${startLeft}%`, top: '20%', transform: 'translate(-50%, -50%) rotate(0deg)' },
-        { left: `${startLeft + 20 + Math.random() * 10}%`, top: '80%', transform: 'translate(-50%, -50%) rotate(' + (180 + Math.random() * 60) + 'deg)' },
-        { left: `${startLeft + 40 + Math.random() * 10}%`, top: `${bounce1Height}%`, transform: 'translate(-50%, -50%) rotate(' + (300 + Math.random() * 60) + 'deg)' },
-        { left: `${startLeft + 60 + Math.random() * 10}%`, top: '80%', transform: 'translate(-50%, -50%) rotate(' + (480 + Math.random() * 60) + 'deg)' },
-        { left: `${startLeft + 70 + Math.random() * 10}%`, top: `${bounce2Height}%`, transform: 'translate(-50%, -50%) rotate(' + (600 + Math.random() * 60) + 'deg)' },
-        { left: `${startLeft + 80 + Math.random() * 10}%`, top: '80%', transform: 'translate(-50%, -50%) rotate(' + (780 + Math.random() * 60) + 'deg)' },
-        { left: `${baseFinalLeft + finalOffsetX}%`, top: `${baseFinalTop + finalOffsetY}%`, transform: 'translate(-50%, -50%) rotate(' + (840 + Math.random() * 60) + 'deg)' }
+        { left: `${startLeft}%`, top: '10%', transform: 'translate(-50%, -50%) rotate(0deg) scale(0.6)' },
+        { left: `${startLeft + 15 + Math.random() * 8}%`, top: '85%', transform: 'translate(-50%, -50%) rotate(' + (220 + Math.random() * 60) + 'deg) scale(1.1)' },
+        { left: `${startLeft + 30 + Math.random() * 8}%`, top: `${bounce1Height}%`, transform: 'translate(-50%, -50%) rotate(' + (420 + Math.random() * 60) + 'deg) scale(1)' },
+        { left: `${startLeft + 45 + Math.random() * 8}%`, top: '85%', transform: 'translate(-50%, -50%) rotate(' + (620 + Math.random() * 60) + 'deg) scale(1.05)' },
+        { left: `${startLeft + 58 + Math.random() * 8}%`, top: `${bounce2Height}%`, transform: 'translate(-50%, -50%) rotate(' + (820 + Math.random() * 60) + 'deg) scale(1)' },
+        { left: `${startLeft + 68 + Math.random() * 8}%`, top: '85%', transform: 'translate(-50%, -50%) rotate(' + (1000 + Math.random() * 60) + 'deg) scale(1.03)' },
+        { left: `${startLeft + 76 + Math.random() * 8}%`, top: `${bounce3Height}%`, transform: 'translate(-50%, -50%) rotate(' + (1160 + Math.random() * 60) + 'deg) scale(1)' },
+        { left: `${startLeft + 82 + Math.random() * 8}%`, top: '85%', transform: 'translate(-50%, -50%) rotate(' + (1300 + Math.random() * 60) + 'deg) scale(1.02)' },
+        { left: `${baseFinalLeft + finalOffsetX}%`, top: `${baseFinalTop + finalOffsetY}%`, transform: 'translate(-50%, -50%) rotate(' + (1420 + Math.random() * 60) + 'deg) scale(1)' }
     ];
 
     const timing = {
-        duration: 4000,
+        duration: 5200,
         iterations: 1,
-        easing: 'ease-in-out',
+        easing: 'cubic-bezier(0.33, 0, 0.2, 1)',
         fill: 'forwards'
     };
 
@@ -70,19 +81,27 @@ diceButton.addEventListener('click', () => {
 
     const diceAnimation = newDice.animate(keyframes, timing);
 
-    // --- Update number during animation using setInterval ---
-    const updateInterval = 100;
-    let intervalId;
+    // --- Update number during animation, slowing down toward the end for a
+    // "spinning to a stop" feel instead of a constant-speed flicker. ---
+    let cycleTimeoutId;
+    const cycleStart = performance.now();
+    const cycleDuration = timing.duration - 500; // stop cycling just before the landing snap
 
-    intervalId = setInterval(() => {
-        const currentRandomNumber = Math.floor(Math.random() * numberOfEyes) + 1;
-        newDice.textContent = currentRandomNumber;
-    }, updateInterval);
+    function scheduleNextCycle() {
+        const elapsed = performance.now() - cycleStart;
+        if (elapsed >= cycleDuration) return;
+        const progress = elapsed / cycleDuration;
+        // Ease from a fast 60ms flicker up to a lazy 220ms flicker.
+        const interval = 60 + progress * progress * 160;
 
-    // --- Chain a final rotation animation and handle click ---
+        newDice.textContent = Math.floor(Math.random() * numberOfEyes) + 1;
+        cycleTimeoutId = setTimeout(scheduleNextCycle, interval);
+    }
+    scheduleNextCycle();
+
+    // --- Chain a final rotation animation and handle click/auto-dismiss ---
     diceAnimation.onfinish = () => {
-        // Clear the interval to stop updating the number
-        clearInterval(intervalId);
+        clearTimeout(cycleTimeoutId);
 
         // Get the final computed style
         const computedStyle = getComputedStyle(newDice);
@@ -95,10 +114,8 @@ diceButton.addEventListener('click', () => {
         newDice.style.top = finalTop;
         newDice.style.transform = finalTransformMatrix;
 
-
         // --- Calculate the current rotation angle from the matrix ---
         const currentRotation = getRotationDegrees(finalTransformMatrix);
-
 
         // --- Define keyframes for the final rotation animation for shortest path ---
         let angleDifference = (0 - currentRotation) % 360;
@@ -108,28 +125,29 @@ diceButton.addEventListener('click', () => {
             angleDifference += 360;
         }
 
-        const finalRotationKeyframesShortest = [
-             { transform: `translate(-50%, -50%) rotate(${currentRotation}deg)` },
-             { transform: `translate(-50%, -50%) rotate(${currentRotation + angleDifference}deg)` }
+        const landingKeyframes = [
+            { transform: `translate(-50%, -50%) rotate(${currentRotation}deg) scale(1)`, boxShadow: '0 0 0 rgba(139, 92, 246, 0)' },
+            { transform: `translate(-50%, -50%) rotate(${currentRotation + angleDifference}deg) scale(1.25)`, boxShadow: '0 0 30px rgba(139, 92, 246, 0.8)' },
+            { transform: `translate(-50%, -50%) rotate(${currentRotation + angleDifference}deg) scale(1)`, boxShadow: '0 0 14px rgba(139, 92, 246, 0.5)' }
         ];
 
-
-        const finalRotationTiming = {
-            duration: 500,
+        const landingTiming = {
+            duration: 550,
             iterations: 1,
             easing: 'ease-out',
             fill: 'forwards'
         };
 
-        // Run the final rotation animation
-        newDice.animate(finalRotationKeyframesShortest, finalRotationTiming);
+        // Run the landing "pop" animation
+        newDice.animate(landingKeyframes, landingTiming);
 
         // Display the final result
         newDice.textContent = finalResult;
 
-        // Add click event listener to the new dice
-        newDice.addEventListener('click', () => {
-            newDice.remove(); // Remove the dice element from the DOM when clicked
-        });
+        // Clicking dismisses immediately; otherwise it auto-dismisses after
+        // AUTO_HIDE_MS so it doesn't linger on screen forever.
+        newDice.style.cursor = 'pointer';
+        newDice.addEventListener('click', () => removeDice(newDice));
+        setTimeout(() => removeDice(newDice), AUTO_HIDE_MS);
     };
-});
+}

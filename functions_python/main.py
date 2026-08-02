@@ -10,6 +10,7 @@ from app.lobbies import (
     createLobby,
     getUserLobbies,
     joinLobby,
+    rollDice,
     startTimer,
     updateLobbyTimestamp,
     validateLobby,
@@ -29,7 +30,7 @@ from app.warmup import heartbeat, quickWarmup, warmUpFunctions
 
 __all__ = [
     "recordPayInterest", "savePlayerData",
-    "createLobby", "getUserLobbies", "joinLobby", "startTimer", "updateLobbyTimestamp", "validateLobby",
+    "createLobby", "getUserLobbies", "joinLobby", "rollDice", "startTimer", "updateLobbyTimestamp", "validateLobby",
     "cleanupOldLobbies", "cleanupRateLimits",
     "addPlayer", "applyCombatDamage", "deletePlayer", "getPlayers", "incrementPlayerField",
     "updateCommanderDamage", "updatePlayer", "updatePlayerSettings",
