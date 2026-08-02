@@ -25,18 +25,26 @@ const modalContent = settingsModal?.querySelector('.settings-modal-content');
 let currentUserId = null;
 
 // Function to display the modal (using Tailwind classes)
-export function openSettingsModal(userId, playerName) {
+export function openSettingsModal(userId, playerName, showCombinedStats) {
     if (settingsModal) {
         settingsModal.classList.remove('hidden');
         settingsModal.classList.add('flex');
         document.body.classList.add('modal-open'); // Prevent body scroll
-        
+
         // Populate username input if available
         const usernameInput = document.getElementById('username');
         if (usernameInput) {
             usernameInput.value = playerName;
         }
-        
+
+        // Populate the combined-stats toggle with this player's current value.
+        // Enabled by default: only an explicit `false` (an existing player who
+        // opted out) should show as off.
+        const showCombinedStatsInput = document.getElementById('showCombinedStats');
+        if (showCombinedStatsInput) {
+            showCombinedStatsInput.checked = showCombinedStats !== false;
+        }
+
         currentUserId = userId; // Store the user ID
     }
 }
@@ -86,6 +94,7 @@ if (saveSettingsButton) {
             const newUsername = document.getElementById('username').value; // Get the new username
             const backgroundColor = document.getElementById('bgColor').value;
             const fontColor = document.getElementById('fontColor').value;
+            const showCombinedStats = document.getElementById('showCombinedStats').checked;
 
             // Use currentUserId to update the user's settings in Firestore
             if (currentUserId) {
@@ -102,6 +111,7 @@ if (saveSettingsButton) {
                             name: newUsername,
                             backgroundColor: backgroundColor,
                             fontColor: fontColor,
+                            showCombinedStats: showCombinedStats,
                         }
                     });
                     
