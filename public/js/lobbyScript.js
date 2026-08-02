@@ -3,6 +3,7 @@ import { Player } from './util/models.js';
 import { openCommanderModal } from "./commanderModalScript.js"
 import { getPlayerFrameHeightFromSnapshot } from "./util/playerFrameHeightFromSnapshot.js"
 import { firebaseConfig } from './util/firebaseConfig.js';
+import { playDiceAnimation } from './diceAnimation.js';
 
 // Initialize Firebase (only once per app)
 if (!firebase.apps.length) {
@@ -37,6 +38,7 @@ const applyCombatDamage = functions.httpsCallable('applyCombatDamage');
 const addPlayer = functions.httpsCallable('addPlayer');
 const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
 const startTimer = functions.httpsCallable('startTimer');
+const rollDice = functions.httpsCallable('rollDice');
 const validateLobby = functions.httpsCallable('validateLobby');
 
 // Function to show spam/error warnings
@@ -785,6 +787,70 @@ function setupTimerButton(lobbyId) {
     }
 }
 
+function setupDiceButton(lobbyId) {
+    const diceButton = document.getElementById('dice');
+    const diceEyesInput = document.getElementById('dice-eyes');
+    if (diceButton && diceEyesInput) {
+        diceButton.addEventListener('click', async () => {
+            // Store original button state
+            const originalText = diceButton.textContent;
+            const originalDisabled = diceButton.disabled;
+
+            try {
+                // Set loading state
+                diceButton.disabled = true;
+                diceButton.textContent = 'Rolling...';
+                diceButton.style.opacity = '0.6';
+                diceButton.style.cursor = 'not-allowed';
+
+                const sides = parseInt(diceEyesInput.value, 10) || 6;
+                // The roll itself is decided server-side and written to the
+                // lobby doc; listenToLobbyDice() plays the animation for
+                // every viewer (including this one) once it comes through.
+                await rollDice({ lobbyId, sides });
+
+                // Restore original button state on success
+                diceButton.disabled = originalDisabled;
+                diceButton.textContent = originalText;
+                diceButton.style.opacity = '';
+                diceButton.style.cursor = '';
+            } catch (error) {
+                console.error('Error rolling dice:', error);
+
+                // Restore original button state on error
+                diceButton.disabled = originalDisabled;
+                diceButton.textContent = originalText;
+                diceButton.style.opacity = '';
+                diceButton.style.cursor = '';
+            }
+        });
+    }
+}
+
+function listenToLobbyDice(lobbyId) {
+    const lobbyRef = firebase.firestore().collection('lobbies').doc(lobbyId);
+    let lastSeenRolledAt = null;
+    let isFirstSnapshot = true;
+
+    lobbyRef.onSnapshot(doc => {
+        const data = doc.data();
+
+        // Skip the initial snapshot so a player who is already in (or just
+        // joined) the lobby doesn't replay a roll that already happened.
+        if (isFirstSnapshot) {
+            isFirstSnapshot = false;
+            lastSeenRolledAt = data && data.diceRolledAt;
+            return;
+        }
+
+        if (!data || !data.diceRolledAt) return;
+        if (data.diceRolledAt === lastSeenRolledAt) return;
+        lastSeenRolledAt = data.diceRolledAt;
+
+        playDiceAnimation(data.diceResult, data.diceSides);
+    });
+}
+
 function listenToLobbyTimer(lobbyId) {
     const lobbyRef = firebase.firestore().collection('lobbies').doc(lobbyId);
     lobbyRef.onSnapshot(doc => {
@@ -1021,6 +1087,7 @@ if (lobbyId) {
             initializeControls(lobbyId);
             setupPlayerListener(lobbyId);
             listenToLobbyTimer(lobbyId);
+            listenToLobbyDice(lobbyId);
         } else {
             console.error("Lobby not found!");
             window.location.href = 'index.html';
@@ -1042,6 +1109,7 @@ function initializeControls(lobbyId) {
     setupAbortButton(lobbyId);
     setupAddDummyPlayerButton(lobbyId);
     setupTimerButton(lobbyId);
+    setupDiceButton(lobbyId);
 }
 
 function setupExitLobbyButton() {

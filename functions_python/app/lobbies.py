@@ -188,3 +188,27 @@ def startTimer(request: https_fn.CallableRequest) -> dict:
     track_write(f"startTimer - lobby {lobby_id} for {duration} min")
 
     return {"success": True, "timerEnd": timer_end}
+
+
+@https_fn.on_call()
+@with_warmup("rollDice")
+def rollDice(request: https_fn.CallableRequest) -> dict:
+    data = request.data or {}
+    lobby_id = data.get("lobbyId")
+    sides = data.get("sides")
+    authenticate_user(request.auth)
+
+    if not lobby_id or not isinstance(lobby_id, str) or lobby_id.strip() == "":
+        raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid lobbyId parameter")
+    if not is_number(sides) or sides < 2:
+        raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid sides parameter")
+
+    sides = int(sides)
+    result = random.randint(1, sides)
+    rolled_at = now_ms()
+
+    lobby_ref = db.collection("lobbies").document(lobby_id)
+    lobby_ref.update({"diceResult": result, "diceSides": sides, "diceRolledAt": rolled_at})
+    track_write(f"rollDice - lobby {lobby_id}: d{sides} -> {result}")
+
+    return {"success": True, "result": result, "sides": sides, "rolledAt": rolled_at}
