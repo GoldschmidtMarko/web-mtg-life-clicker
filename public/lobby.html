@@ -208,7 +208,7 @@
 
     <!-- Game Picker Modal -->
     <div id="gamePickerModal" class="hidden fixed inset-0 flex justify-center items-center z-50" style="background: var(--scrim);">
-        <div class="history-modal-content panel p-6 sm:p-8 w-full max-w-md space-y-6">
+        <div class="history-modal-content panel p-6 sm:p-8 w-full max-w-lg space-y-6">
             <h2 class="text-2xl sm:text-3xl font-bold text-center" style="color: var(--ink);">Select a Game</h2>
 
             <div id="gamePickerList" class="flex flex-col w-full space-y-2" style="max-height: 60vh; overflow-y: auto;">
@@ -225,7 +225,7 @@
 
     <!-- Life Change History Modal -->
     <div id="historyModal" class="hidden fixed inset-0 flex justify-center items-center z-50" style="background: var(--scrim);">
-        <div class="history-modal-content panel p-6 sm:p-8 w-full max-w-lg space-y-6">
+        <div class="history-modal-content panel p-6 sm:p-8 w-full max-w-3xl space-y-6">
             <h2 id="historyModalTitle" class="text-2xl sm:text-3xl font-bold text-center" style="color: var(--ink);">Life Changes</h2>
 
             <div class="flex gap-2 justify-center">
@@ -241,11 +241,14 @@
                 <!-- Chart image inserted dynamically -->
             </div>
 
-            <div id="historyList" class="hidden flex-col w-full space-y-2" style="max-height: 50vh; overflow-y: auto;">
+            <div id="historyList" class="hidden flex-col w-full space-y-2" style="max-height: 55vh; overflow-y: auto;">
                 <!-- History entries added dynamically -->
             </div>
 
             <div class="flex justify-end gap-4">
+                <button id="backToGamePickerButton" class="btn btn-secondary">
+                    <span>Back</span>
+                </button>
                 <button id="closeHistoryModal" class="btn btn-secondary">
                     <span>Close</span>
                 </button>

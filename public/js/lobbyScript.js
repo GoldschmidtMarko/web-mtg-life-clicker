@@ -1240,6 +1240,7 @@ function closeHistoryModal() {
 function setupHistoryButton(lobbyId) {
     const historyButton = document.getElementById('history-button');
     const closeHistoryButton = document.getElementById('closeHistoryModal');
+    const backToGamePickerButton = document.getElementById('backToGamePickerButton');
     const historyModal = document.getElementById('historyModal');
     const closeGamePickerButton = document.getElementById('closeGamePickerModal');
     const gamePickerModal = document.getElementById('gamePickerModal');
@@ -1251,6 +1252,12 @@ function setupHistoryButton(lobbyId) {
     }
     if (closeHistoryButton) {
         closeHistoryButton.addEventListener('click', closeHistoryModal);
+    }
+    if (backToGamePickerButton) {
+        backToGamePickerButton.addEventListener('click', () => {
+            closeHistoryModal();
+            openGamePickerModal(lobbyId);
+        });
     }
     if (historyViewChartBtn) {
         historyViewChartBtn.addEventListener('click', () => setHistoryView('chart'));
