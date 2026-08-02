@@ -307,6 +307,18 @@ label.field-label {
   margin-bottom: 0.4em;
 }
 
+.field-checkbox {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.field-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 /* Divider ---------------------------------------------------------------- */
 
 .divider {

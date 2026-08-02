@@ -388,7 +388,7 @@ function addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, frame
     
     settingsButton.addEventListener('click', (event) => {
         event.stopPropagation();
-        openSettingsModal(playerDocument.id, playerName);
+        openSettingsModal(playerDocument.id, playerName, playerDocument.data().showCombinedStats);
     });
     
     playerFrame.appendChild(removeButton);
@@ -437,6 +437,35 @@ function populatePlayerGridDefault(snapshot) {
             lifeElement.innerHTML = `<span style="font-size: 0.8em; opacity: 0.8;">Life:</span><br><span style="font-size: 1.2em; font-weight: bold;">${playerLife}</span> <span style="color: #ef4444; font-weight: bold;">(${lifeToApply})</span>`;
         }
         playerFrame.appendChild(lifeElement);
+
+        // Optional: show infect and commander damage alongside life, per player preference
+        if (playerData.showCombinedStats) {
+            const extraFontSize = fontSize * 0.55;
+
+            const infect = playerData.infect || 0;
+            const infectToApply = playerData.infectToApply || 0;
+            const infectElement = document.createElement('div');
+            infectElement.style.marginTop = '4px';
+            infectElement.style.fontSize = `${extraFontSize}px`;
+            infectElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
+            let infectHtml = `<span style="opacity: 0.8;">Infect:</span> <span style="font-weight: bold; color: #8b5cf6;">${infect}</span>`;
+            if (infectToApply > 0) {
+                infectHtml += ` <span style="color: #10b981; font-weight: bold;">(+${infectToApply})</span>`;
+            } else if (infectToApply < 0) {
+                infectHtml += ` <span style="color: #ef4444; font-weight: bold;">(${infectToApply})</span>`;
+            }
+            infectElement.innerHTML = infectHtml;
+            playerFrame.appendChild(infectElement);
+
+            const commanderDamages = playerData.commanderDamages || [];
+            const totalCommanderDamage = commanderDamages.reduce((sum, cd) => sum + (cd.damage || 0), 0);
+            const commanderElement = document.createElement('div');
+            commanderElement.style.marginTop = '2px';
+            commanderElement.style.fontSize = `${extraFontSize}px`;
+            commanderElement.style.textShadow = '0 2px 4px rgba(0,0,0,0.3)';
+            commanderElement.innerHTML = `<span style="opacity: 0.8;">Commander:</span> <span style="font-weight: bold;">${totalCommanderDamage}</span>`;
+            playerFrame.appendChild(commanderElement);
+        }
 
         addDeleteAndSettingIconToPlayerFrame(playerDocument, playerFrame, playerFrameHeight)
         playerGrid.appendChild(playerFrame);
