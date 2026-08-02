@@ -266,6 +266,35 @@ def startNewGame(request: https_fn.CallableRequest) -> dict:
 
 
 @https_fn.on_call()
+@with_warmup("deleteGame")
+def deleteGame(request: https_fn.CallableRequest) -> dict:
+    data = request.data or {}
+    lobby_id = data.get("lobbyId")
+    game_id = data.get("gameId")
+    authenticate_user(request.auth)
+
+    if not lobby_id or not isinstance(lobby_id, str) or lobby_id.strip() == "":
+        raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid lobbyId parameter")
+    if not game_id or not isinstance(game_id, str) or game_id.strip() == "":
+        raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid gameId parameter")
+
+    lobby_ref = db.collection("lobbies").document(lobby_id)
+    lobby_data = (lobby_ref.get().to_dict()) or {}
+
+    if lobby_data.get("currentGameId") == game_id:
+        raise https_fn.HttpsError(
+            Err.FAILED_PRECONDITION,
+            "Cannot delete the active game. Reset life to start a new game first.",
+        )
+
+    game_ref = lobby_ref.collection("games").document(game_id)
+    db.recursive_delete(game_ref)
+    track_write(f"deleteGame - lobby {lobby_id} game {game_id}")
+
+    return {"success": True}
+
+
+@https_fn.on_call()
 @with_warmup("logGameChanges")
 def logGameChanges(request: https_fn.CallableRequest) -> dict:
     data = request.data or {}

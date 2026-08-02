@@ -41,6 +41,7 @@ const startTimer = functions.httpsCallable('startTimer');
 const rollDice = functions.httpsCallable('rollDice');
 const logGameChanges = functions.httpsCallable('logGameChanges');
 const startNewGame = functions.httpsCallable('startNewGame');
+const deleteGame = functions.httpsCallable('deleteGame');
 const getLifeChangeChart = functions.httpsCallable('getLifeChangeChart');
 const validateLobby = functions.httpsCallable('validateLobby');
 
@@ -890,9 +891,12 @@ function formatDelta(before, after) {
     return `${before} → ${after} (${sign}${delta})`;
 }
 
-function renderHistoryEntry(entry) {
+function renderHistoryEntry(entry, onRestore) {
     const wrapper = document.createElement('div');
     wrapper.className = 'chip p-3 space-y-1';
+
+    const headerRow = document.createElement('div');
+    headerRow.className = 'flex items-center justify-between gap-2';
 
     const timeLabel = document.createElement('div');
     timeLabel.className = 'text-xs';
@@ -900,7 +904,17 @@ function renderHistoryEntry(entry) {
     timeLabel.textContent = entry.createdAt
         ? new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : '';
-    wrapper.appendChild(timeLabel);
+    headerRow.appendChild(timeLabel);
+
+    if (onRestore) {
+        const restoreBtn = document.createElement('button');
+        restoreBtn.className = 'btn btn-secondary btn-sm';
+        restoreBtn.textContent = 'Restore to this point';
+        restoreBtn.addEventListener('click', onRestore);
+        headerRow.appendChild(restoreBtn);
+    }
+
+    wrapper.appendChild(headerRow);
 
     (entry.entries || []).forEach(change => {
         const parts = [];
@@ -931,19 +945,105 @@ function renderHistoryEntry(entry) {
     return wrapper;
 }
 
-function renderGameEntry(lobbyId, gameId, gameData) {
+// Reconstructs each player's life/infect/commander-damage state as of a
+// specific point in a game's history, by replaying every entry up to and
+// including it (entries only carry the values that changed at that step).
+function buildStateAsOfEntry(ascendingEntries, targetIndex) {
+    const playerState = {};
+
+    for (let i = 0; i <= targetIndex; i++) {
+        const data = ascendingEntries[i];
+        for (const change of data.entries || []) {
+            const playerId = change.playerId;
+            if (!playerId) continue;
+
+            const state = playerState[playerId] || {
+                name: change.playerName,
+                life: null,
+                infect: null,
+                commanderDamages: new Map(),
+            };
+            if (change.lifeAfter !== undefined && change.lifeAfter !== null) {
+                state.life = change.lifeAfter;
+            }
+            if (change.infectAfter !== undefined && change.infectAfter !== null) {
+                state.infect = change.infectAfter;
+            }
+            (change.commanderDamageChanges || []).forEach(cd => {
+                if (cd.commanderName) {
+                    state.commanderDamages.set(cd.commanderName, cd.damageAfter);
+                }
+            });
+            if (change.playerName) state.name = change.playerName;
+
+            playerState[playerId] = state;
+        }
+    }
+
+    return playerState;
+}
+
+async function restoreGameToEntry(lobbyId, ascendingEntries, targetIndex) {
+    const playerState = buildStateAsOfEntry(ascendingEntries, targetIndex);
+
+    for (const [playerId, state] of Object.entries(playerState)) {
+        if (state.life === null) continue;
+
+        const updates = {
+            life: state.life,
+            lifeToApply: 0,
+            infect: state.infect !== null ? state.infect : 0,
+            infectToApply: 0,
+            commanderDamages: Array.from(state.commanderDamages.entries()).map(([commanderName, damage]) => ({
+                playerName: state.name,
+                commanderName,
+                damage,
+                lifeToApply: 0,
+            })),
+        };
+
+        await updatePlayer({ lobbyId, playerId, updates });
+    }
+}
+
+function renderGameEntry(lobbyId, gameId, gameData, isCurrent) {
+    const row = document.createElement('div');
+    row.className = 'flex gap-2 items-center';
+
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary btn-block';
     const label = `Game ${gameData.gameNumber != null ? gameData.gameNumber : '?'}`;
     const timeLabel = gameData.startedAt
         ? new Date(gameData.startedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
         : '';
-    btn.textContent = timeLabel ? `${label} — ${timeLabel}` : label;
+    btn.textContent = timeLabel ? `${label} — ${timeLabel}${isCurrent ? ' (current)' : ''}` : label;
     btn.addEventListener('click', () => {
         closeGamePickerModal();
-        openGameHistoryModal(lobbyId, gameId, label);
+        openGameHistoryModal(lobbyId, gameId, label, isCurrent);
     });
-    return btn;
+    row.appendChild(btn);
+
+    if (!isCurrent) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'icon-btn';
+        deleteBtn.setAttribute('aria-label', `Delete ${label}`);
+        deleteBtn.title = `Delete ${label}`;
+        deleteBtn.innerHTML = '<i class="fas fa-trash text-xs"></i>';
+        deleteBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            showConfirmationModal(`Delete ${label}? This permanently removes its chart and change log.`, async () => {
+                try {
+                    await deleteGame({ lobbyId, gameId });
+                    openGamePickerModal(lobbyId);
+                } catch (error) {
+                    console.error('Error deleting game:', error);
+                }
+            });
+        });
+        row.appendChild(deleteBtn);
+    }
+
+    return row;
 }
 
 function openGamePickerModal(lobbyId) {
@@ -962,12 +1062,14 @@ function openGamePickerModal(lobbyId) {
     modal.classList.add('flex');
     document.body.classList.add('modal-open');
 
-    firebase.firestore()
-        .collection('lobbies').doc(lobbyId)
-        .collection('games')
-        .orderBy('gameNumber', 'desc')
-        .get()
-        .then(snapshot => {
+    const lobbyRef = firebase.firestore().collection('lobbies').doc(lobbyId);
+
+    Promise.all([
+        lobbyRef.get(),
+        lobbyRef.collection('games').orderBy('gameNumber', 'desc').get(),
+    ])
+        .then(([lobbyDoc, snapshot]) => {
+            const currentGameId = lobbyDoc.data() && lobbyDoc.data().currentGameId;
             list.innerHTML = '';
             if (snapshot.empty) {
                 const empty = document.createElement('p');
@@ -978,7 +1080,7 @@ function openGamePickerModal(lobbyId) {
                 return;
             }
             snapshot.forEach(doc => {
-                list.appendChild(renderGameEntry(lobbyId, doc.id, doc.data()));
+                list.appendChild(renderGameEntry(lobbyId, doc.id, doc.data(), doc.id === currentGameId));
             });
         })
         .catch(error => {
@@ -1022,7 +1124,7 @@ function setHistoryView(view) {
     listBtn.classList.toggle('btn-secondary', showChart);
 }
 
-async function openGameHistoryModal(lobbyId, gameId, label) {
+async function openGameHistoryModal(lobbyId, gameId, label, isCurrent) {
     const modal = document.getElementById('historyModal');
     const title = document.getElementById('historyModalTitle');
     const chartContainer = document.getElementById('historyChartContainer');
@@ -1065,8 +1167,28 @@ async function openGameHistoryModal(lobbyId, gameId, label) {
             list.appendChild(empty);
             return;
         }
-        snapshot.forEach(doc => {
-            list.appendChild(renderHistoryEntry(doc.data()));
+
+        // snapshot is newest-first; restoring needs to replay oldest-first.
+        const descDocs = snapshot.docs;
+        const ascendingEntries = descDocs.slice().reverse().map(d => d.data());
+
+        descDocs.forEach((doc, descIndex) => {
+            const ascIndex = ascendingEntries.length - 1 - descIndex;
+            const onRestore = isCurrent
+                ? () => {
+                    showConfirmationModal(
+                        'Restore all players to this point? This overwrites current life, infect, and commander damage.',
+                        async () => {
+                            try {
+                                await restoreGameToEntry(lobbyId, ascendingEntries, ascIndex);
+                            } catch (error) {
+                                console.error('Error restoring game state:', error);
+                            }
+                        }
+                    );
+                }
+                : null;
+            list.appendChild(renderHistoryEntry(doc.data(), onRestore));
         });
     }, error => {
         console.error('Error listening to game history:', error);

@@ -9,6 +9,7 @@ from app.account import recordPayInterest, savePlayerData
 from app.charts import getLifeChangeChart
 from app.lobbies import (
     createLobby,
+    deleteGame,
     getUserLobbies,
     joinLobby,
     logGameChanges,
@@ -34,8 +35,8 @@ from app.warmup import heartbeat, quickWarmup, warmUpFunctions
 __all__ = [
     "recordPayInterest", "savePlayerData",
     "getLifeChangeChart",
-    "createLobby", "getUserLobbies", "joinLobby", "logGameChanges", "rollDice", "startNewGame", "startTimer",
-    "updateLobbyTimestamp", "validateLobby",
+    "createLobby", "deleteGame", "getUserLobbies", "joinLobby", "logGameChanges", "rollDice", "startNewGame",
+    "startTimer", "updateLobbyTimestamp", "validateLobby",
     "cleanupOldLobbies", "cleanupRateLimits",
     "addPlayer", "applyCombatDamage", "deletePlayer", "getPlayers", "incrementPlayerField",
     "updateCommanderDamage", "updatePlayer", "updatePlayerSettings",
