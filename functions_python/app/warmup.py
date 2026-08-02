@@ -19,7 +19,7 @@ from .common import Err, now_ms
 from .firebase_app import PROCESS_START, db
 
 WARMUP_FUNCTIONS = [
-    "savePlayerData", "createLobby", "joinLobby", "getPlayers", "updatePlayer",
+    "savePlayerData", "createLobby", "joinLobby", "getUserLobbies", "getPlayers", "updatePlayer",
     "deletePlayer", "incrementPlayerField", "updateCommanderDamage",
     "applyCombatDamage", "addPlayer", "updateLobbyTimestamp", "updatePlayerSettings",
     "cleanupRateLimits", "cleanupOldLobbies", "startTimer", "recordPayInterest",
