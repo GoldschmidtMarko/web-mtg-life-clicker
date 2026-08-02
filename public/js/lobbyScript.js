@@ -1623,6 +1623,9 @@ function setupResetLifeButton(lobbyId) {
                     await startNewGame({ lobbyId });
                 } catch (newGameError) {
                     console.error('Error starting new game:', newGameError);
+                    if (newGameError.code === 'functions/resource-exhausted') {
+                        showSpamWarning(newGameError.message || 'Rate limit exceeded. Please slow down.');
+                    }
                 }
 
                 // Restore original button state on success

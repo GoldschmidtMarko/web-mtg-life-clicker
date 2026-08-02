@@ -249,9 +249,14 @@ def startNewGame(request: https_fn.CallableRequest) -> dict:
     data = request.data or {}
     lobby_id = data.get("lobbyId")
     authenticate_user(request.auth)
+    user_id = request.auth.uid
 
     if not lobby_id or not isinstance(lobby_id, str) or lobby_id.strip() == "":
         raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid lobbyId parameter")
+
+    if not check_rate_limit(user_id, "startNewGame", 10, 300000):
+        raise https_fn.HttpsError(Err.RESOURCE_EXHAUSTED,
+                                   "Rate limit exceeded. You can only start 10 new games per 5 minutes.")
 
     lobby_ref = db.collection("lobbies").document(lobby_id)
     game_number = _next_game_number(lobby_ref)
