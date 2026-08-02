@@ -40,6 +40,8 @@ const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
 const startTimer = functions.httpsCallable('startTimer');
 const rollDice = functions.httpsCallable('rollDice');
 const logGameChanges = functions.httpsCallable('logGameChanges');
+const startNewGame = functions.httpsCallable('startNewGame');
+const getLifeChangeChart = functions.httpsCallable('getLifeChangeChart');
 const validateLobby = functions.httpsCallable('validateLobby');
 
 // Function to show spam/error warnings
@@ -929,41 +931,149 @@ function renderHistoryEntry(entry) {
     return wrapper;
 }
 
-function listenToLobbyHistory(lobbyId) {
+function renderGameEntry(lobbyId, gameId, gameData) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-secondary btn-block';
+    const label = `Game ${gameData.gameNumber != null ? gameData.gameNumber : '?'}`;
+    const timeLabel = gameData.startedAt
+        ? new Date(gameData.startedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+        : '';
+    btn.textContent = timeLabel ? `${label} — ${timeLabel}` : label;
+    btn.addEventListener('click', () => {
+        closeGamePickerModal();
+        openGameHistoryModal(lobbyId, gameId, label);
+    });
+    return btn;
+}
+
+function openGamePickerModal(lobbyId) {
+    const modal = document.getElementById('gamePickerModal');
+    const list = document.getElementById('gamePickerList');
+    if (!modal || !list) return;
+
+    list.innerHTML = '';
+    const loading = document.createElement('p');
+    loading.className = 'text-sm text-center';
+    loading.style.color = 'var(--ink-faint)';
+    loading.textContent = 'Loading…';
+    list.appendChild(loading);
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('modal-open');
+
+    firebase.firestore()
+        .collection('lobbies').doc(lobbyId)
+        .collection('games')
+        .orderBy('gameNumber', 'desc')
+        .get()
+        .then(snapshot => {
+            list.innerHTML = '';
+            if (snapshot.empty) {
+                const empty = document.createElement('p');
+                empty.className = 'text-sm text-center';
+                empty.style.color = 'var(--ink-faint)';
+                empty.textContent = 'No games yet.';
+                list.appendChild(empty);
+                return;
+            }
+            snapshot.forEach(doc => {
+                list.appendChild(renderGameEntry(lobbyId, doc.id, doc.data()));
+            });
+        })
+        .catch(error => {
+            console.error('Error loading games:', error);
+            list.innerHTML = '';
+            const errEl = document.createElement('p');
+            errEl.className = 'text-sm text-center';
+            errEl.style.color = 'var(--ink-faint)';
+            errEl.textContent = 'Failed to load games.';
+            list.appendChild(errEl);
+        });
+}
+
+function closeGamePickerModal() {
+    const modal = document.getElementById('gamePickerModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.classList.remove('modal-open');
+}
+
+// Tracks the live listener for whichever game's history is currently open,
+// so switching games (or closing the modal) doesn't leak old listeners.
+let activeGameHistoryUnsubscribe = null;
+
+async function openGameHistoryModal(lobbyId, gameId, label) {
+    const modal = document.getElementById('historyModal');
+    const title = document.getElementById('historyModalTitle');
+    const chartContainer = document.getElementById('historyChartContainer');
+    const list = document.getElementById('historyList');
+    if (!modal || !list || !chartContainer) return;
+
+    if (title) title.textContent = label || 'Life Changes';
+    chartContainer.innerHTML = '';
+    const chartLoading = document.createElement('p');
+    chartLoading.className = 'text-sm';
+    chartLoading.style.color = 'var(--ink-faint)';
+    chartLoading.textContent = 'Loading chart…';
+    chartContainer.appendChild(chartLoading);
+    list.innerHTML = '';
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('modal-open');
+
+    if (activeGameHistoryUnsubscribe) {
+        activeGameHistoryUnsubscribe();
+        activeGameHistoryUnsubscribe = null;
+    }
+
     const historyRef = firebase.firestore()
         .collection('lobbies').doc(lobbyId)
+        .collection('games').doc(gameId)
         .collection('history')
         .orderBy('createdAt', 'desc')
         .limit(50);
 
-    historyRef.onSnapshot(snapshot => {
-        const historyList = document.getElementById('historyList');
-        if (!historyList) return;
-        historyList.innerHTML = '';
-
+    activeGameHistoryUnsubscribe = historyRef.onSnapshot(snapshot => {
+        list.innerHTML = '';
         if (snapshot.empty) {
             const empty = document.createElement('p');
             empty.className = 'text-sm text-center';
             empty.style.color = 'var(--ink-faint)';
             empty.textContent = 'No changes logged yet.';
-            historyList.appendChild(empty);
+            list.appendChild(empty);
             return;
         }
-
         snapshot.forEach(doc => {
-            historyList.appendChild(renderHistoryEntry(doc.data()));
+            list.appendChild(renderHistoryEntry(doc.data()));
         });
     }, error => {
-        console.error('Error listening to lobby history:', error);
+        console.error('Error listening to game history:', error);
     });
-}
 
-function openHistoryModal() {
-    const historyModal = document.getElementById('historyModal');
-    if (!historyModal) return;
-    historyModal.classList.remove('hidden');
-    historyModal.classList.add('flex');
-    document.body.classList.add('modal-open');
+    try {
+        const result = await getLifeChangeChart({ lobbyId, gameId });
+        const imageBase64 = result.data && result.data.image;
+        chartContainer.innerHTML = '';
+        if (imageBase64) {
+            const img = document.createElement('img');
+            img.src = `data:image/png;base64,${imageBase64}`;
+            img.alt = 'Life over time chart';
+            img.style.maxWidth = '100%';
+            img.style.borderRadius = '8px';
+            chartContainer.appendChild(img);
+        }
+    } catch (error) {
+        console.error('Error fetching life change chart:', error);
+        chartContainer.innerHTML = '';
+        const msg = document.createElement('p');
+        msg.className = 'text-sm text-center';
+        msg.style.color = 'var(--ink-faint)';
+        msg.textContent = 'No chart yet — apply some life changes first.';
+        chartContainer.appendChild(msg);
+    }
 }
 
 function closeHistoryModal() {
@@ -972,18 +1082,27 @@ function closeHistoryModal() {
     historyModal.classList.add('hidden');
     historyModal.classList.remove('flex');
     document.body.classList.remove('modal-open');
+    if (activeGameHistoryUnsubscribe) {
+        activeGameHistoryUnsubscribe();
+        activeGameHistoryUnsubscribe = null;
+    }
 }
 
-function setupHistoryButton() {
+function setupHistoryButton(lobbyId) {
     const historyButton = document.getElementById('history-button');
-    const closeButton = document.getElementById('closeHistoryModal');
+    const closeHistoryButton = document.getElementById('closeHistoryModal');
     const historyModal = document.getElementById('historyModal');
+    const closeGamePickerButton = document.getElementById('closeGamePickerModal');
+    const gamePickerModal = document.getElementById('gamePickerModal');
 
     if (historyButton) {
-        historyButton.addEventListener('click', openHistoryModal);
+        historyButton.addEventListener('click', () => openGamePickerModal(lobbyId));
     }
-    if (closeButton) {
-        closeButton.addEventListener('click', closeHistoryModal);
+    if (closeHistoryButton) {
+        closeHistoryButton.addEventListener('click', closeHistoryModal);
+    }
+    if (closeGamePickerButton) {
+        closeGamePickerButton.addEventListener('click', closeGamePickerModal);
     }
     if (historyModal) {
         historyModal.addEventListener('click', (event) => {
@@ -992,9 +1111,19 @@ function setupHistoryButton() {
             }
         });
     }
+    if (gamePickerModal) {
+        gamePickerModal.addEventListener('click', (event) => {
+            if (event.target === gamePickerModal) {
+                closeGamePickerModal();
+            }
+        });
+    }
     window.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && historyModal && !historyModal.classList.contains('hidden')) {
+        if (event.key !== 'Escape') return;
+        if (historyModal && !historyModal.classList.contains('hidden')) {
             closeHistoryModal();
+        } else if (gamePickerModal && !gamePickerModal.classList.contains('hidden')) {
+            closeGamePickerModal();
         }
     });
 }
@@ -1236,7 +1365,6 @@ if (lobbyId) {
             setupPlayerListener(lobbyId);
             listenToLobbyTimer(lobbyId);
             listenToLobbyDice(lobbyId);
-            listenToLobbyHistory(lobbyId);
         } else {
             console.error("Lobby not found!");
             window.location.href = 'index.html';
@@ -1259,7 +1387,7 @@ function initializeControls(lobbyId) {
     setupAddDummyPlayerButton(lobbyId);
     setupTimerButton(lobbyId);
     setupDiceButton(lobbyId);
-    setupHistoryButton();
+    setupHistoryButton(lobbyId);
 }
 
 function setupExitLobbyButton() {
@@ -1324,7 +1452,15 @@ function setupResetLifeButton(lobbyId) {
                         }
                     });
                 }
-                
+
+                // A reset starts a fresh game: subsequent Apply clicks log
+                // their changes under a new game instead of the old one.
+                try {
+                    await startNewGame({ lobbyId });
+                } catch (newGameError) {
+                    console.error('Error starting new game:', newGameError);
+                }
+
                 // Restore original button state on success
                 resetLifeButton.disabled = originalDisabled;
                 resetLifeButton.textContent = originalText;

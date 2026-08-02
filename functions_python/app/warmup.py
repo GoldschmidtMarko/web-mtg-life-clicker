@@ -22,7 +22,8 @@ WARMUP_FUNCTIONS = [
     "savePlayerData", "createLobby", "joinLobby", "getUserLobbies", "getPlayers", "updatePlayer",
     "deletePlayer", "incrementPlayerField", "updateCommanderDamage",
     "applyCombatDamage", "addPlayer", "updateLobbyTimestamp", "updatePlayerSettings",
-    "cleanupRateLimits", "cleanupOldLobbies", "startTimer", "rollDice", "logGameChanges", "recordPayInterest",
+    "cleanupRateLimits", "cleanupOldLobbies", "startTimer", "rollDice", "logGameChanges", "startNewGame",
+    "recordPayInterest",
     "warmUpFunctions", "heartbeat", "validateLobby",
 ]
 _WARMUP_INTERVAL_MS = 10 * 60 * 1000

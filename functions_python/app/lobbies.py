@@ -13,6 +13,30 @@ from .rate_limiting import check_rate_limit
 from .warmup import track_read, track_write, with_warmup
 
 
+def _next_game_number(lobby_ref) -> int:
+    last_game = list(
+        lobby_ref.collection("games").order_by("gameNumber", direction=firestore.Query.DESCENDING).limit(1).stream()
+    )
+    if not last_game:
+        return 1
+    return (last_game[0].to_dict().get("gameNumber") or 0) + 1
+
+
+def _ensure_current_game(lobby_ref) -> str:
+    """Returns the id of the lobby's current game, lazily creating game 1
+    for lobbies that predate the games feature."""
+    lobby_doc = lobby_ref.get()
+    lobby_data = lobby_doc.to_dict() or {}
+    game_id = lobby_data.get("currentGameId")
+    if game_id:
+        return game_id
+
+    game_ref = lobby_ref.collection("games").document()
+    game_ref.set({"gameNumber": _next_game_number(lobby_ref), "startedAt": now_ms()})
+    lobby_ref.update({"currentGameId": game_ref.id})
+    return game_ref.id
+
+
 @https_fn.on_call(timeout_sec=10)
 @with_warmup("createLobby")
 def createLobby(request: https_fn.CallableRequest) -> dict:
@@ -26,6 +50,8 @@ def createLobby(request: https_fn.CallableRequest) -> dict:
                                    "Rate limit exceeded. You can only create 3 lobbies per 5 minutes.")
 
     lobby_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    lobby_ref = db.collection("lobbies").document(lobby_code)
+    game_ref = lobby_ref.collection("games").document()
 
     new_lobby = {
         "code": lobby_code,
@@ -33,12 +59,15 @@ def createLobby(request: https_fn.CallableRequest) -> dict:
         "ownerName": player_name,
         "createdAt": firestore.SERVER_TIMESTAMP,
         "lastUpdated": firestore.SERVER_TIMESTAMP,
+        "currentGameId": game_ref.id,
     }
 
     try:
-        lobby_ref = db.collection("lobbies").document(lobby_code)
         lobby_ref.set(new_lobby)
         track_write("createLobby - lobby creation")
+
+        game_ref.set({"gameNumber": 1, "startedAt": now_ms()})
+        track_write("createLobby - initial game creation")
 
         lobby_ref.collection("players").document(user_id).set({**player, "id": user_id})
         track_write("createLobby - player addition")
@@ -215,6 +244,28 @@ def rollDice(request: https_fn.CallableRequest) -> dict:
 
 
 @https_fn.on_call()
+@with_warmup("startNewGame")
+def startNewGame(request: https_fn.CallableRequest) -> dict:
+    data = request.data or {}
+    lobby_id = data.get("lobbyId")
+    authenticate_user(request.auth)
+
+    if not lobby_id or not isinstance(lobby_id, str) or lobby_id.strip() == "":
+        raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid lobbyId parameter")
+
+    lobby_ref = db.collection("lobbies").document(lobby_id)
+    game_number = _next_game_number(lobby_ref)
+    game_ref = lobby_ref.collection("games").document()
+
+    game_ref.set({"gameNumber": game_number, "startedAt": now_ms()})
+    track_write(f"startNewGame - lobby {lobby_id}: game #{game_number}")
+
+    lobby_ref.update({"currentGameId": game_ref.id})
+
+    return {"success": True, "gameId": game_ref.id, "gameNumber": game_number}
+
+
+@https_fn.on_call()
 @with_warmup("logGameChanges")
 def logGameChanges(request: https_fn.CallableRequest) -> dict:
     data = request.data or {}
@@ -253,9 +304,12 @@ def logGameChanges(request: https_fn.CallableRequest) -> dict:
     if not entries:
         raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "No valid change entries provided")
 
-    now = now_ms()
-    history_ref = db.collection("lobbies").document(lobby_id).collection("history").document()
-    history_ref.set({"createdAt": now, "entries": entries})
-    track_write(f"logGameChanges - lobby {lobby_id}: {len(entries)} player(s)")
+    lobby_ref = db.collection("lobbies").document(lobby_id)
+    game_id = _ensure_current_game(lobby_ref)
 
-    return {"success": True, "historyId": history_ref.id}
+    now = now_ms()
+    history_ref = lobby_ref.collection("games").document(game_id).collection("history").document()
+    history_ref.set({"createdAt": now, "entries": entries})
+    track_write(f"logGameChanges - lobby {lobby_id} game {game_id}: {len(entries)} player(s)")
+
+    return {"success": True, "historyId": history_ref.id, "gameId": game_id}
