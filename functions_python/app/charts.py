@@ -82,7 +82,9 @@ def getLifeChangeChart(request: https_fn.CallableRequest) -> dict:
 
     series = _build_life_series(history_docs, game_started_at)
     if not series:
-        raise https_fn.HttpsError(Err.NOT_FOUND, "No life changes recorded for this game yet.")
+        # A game with no changes yet (e.g. right after Reset Life) is a
+        # normal, expected state - not an error.
+        return {"success": True, "image": None}
 
     image_base64 = _render_life_chart(series)
 

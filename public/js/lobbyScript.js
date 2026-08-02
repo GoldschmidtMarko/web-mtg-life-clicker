@@ -1083,6 +1083,14 @@ async function openGameHistoryModal(lobbyId, gameId, label) {
             img.style.maxWidth = '100%';
             img.style.borderRadius = '8px';
             chartContainer.appendChild(img);
+        } else {
+            // A brand-new game (e.g. right after Reset Life) has no
+            // changes yet - a normal state, not an error.
+            const msg = document.createElement('p');
+            msg.className = 'text-sm text-center';
+            msg.style.color = 'var(--ink-faint)';
+            msg.textContent = 'No chart yet — apply some life changes first.';
+            chartContainer.appendChild(msg);
         }
     } catch (error) {
         console.error('Error fetching life change chart:', error);
@@ -1090,7 +1098,7 @@ async function openGameHistoryModal(lobbyId, gameId, label) {
         const msg = document.createElement('p');
         msg.className = 'text-sm text-center';
         msg.style.color = 'var(--ink-faint)';
-        msg.textContent = 'No chart yet — apply some life changes first.';
+        msg.textContent = 'Failed to load chart. Please try again.';
         chartContainer.appendChild(msg);
     }
 }
