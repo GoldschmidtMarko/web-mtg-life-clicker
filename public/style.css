@@ -249,6 +249,13 @@ body {
     display: none !important;
 }
 
+/* The confirmation modal can be triggered from inside an already-open
+   modal (delete/restore confirmations from the game picker or history
+   modal), so it must stack above the other z-index:50 modals. */
+#confirmation-modal {
+    z-index: 60 !important;
+}
+
 /* Responsive modal adjustments */
 @media screen and (max-width: 768px) {
     .settings-modal-content,

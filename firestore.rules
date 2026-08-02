@@ -91,6 +91,26 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
+    // Rules for the 'games' subcollection within 'lobbies' (one per Reset
+    // Life / "new game"), and its nested per-game change history.
+    match /lobbies/{lobbyId}/games/{gameId} {
+      // Allow any authenticated user to read the list of games
+      allow read: if isAuthenticated();
+
+      // Games are only ever created server-side (createLobby / startNewGame),
+      // which use the Admin SDK and bypass these rules.
+      allow write: if false;
+    }
+
+    match /lobbies/{lobbyId}/games/{gameId}/history/{historyId} {
+      // Allow any authenticated user to read a game's change log
+      allow read: if isAuthenticated();
+
+      // Entries are only ever written server-side by the logGameChanges
+      // Cloud Function (which uses the Admin SDK and bypasses these rules).
+      allow write: if false;
+    }
+
     // Rate limiting collection (optional - for Firestore-based rate limiting)
     match /rateLimits/{userId} {
       allow read, write: if isAuthenticated() && 

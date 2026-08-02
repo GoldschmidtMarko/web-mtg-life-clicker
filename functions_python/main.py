@@ -6,11 +6,15 @@ camelCase to match the JS originals instead of following PEP 8.
 """
 
 from app.account import recordPayInterest, savePlayerData
+from app.charts import getLifeChangeChart
 from app.lobbies import (
     createLobby,
+    deleteGame,
     getUserLobbies,
     joinLobby,
+    logGameChanges,
     rollDice,
+    startNewGame,
     startTimer,
     updateLobbyTimestamp,
     validateLobby,
@@ -30,7 +34,9 @@ from app.warmup import heartbeat, quickWarmup, warmUpFunctions
 
 __all__ = [
     "recordPayInterest", "savePlayerData",
-    "createLobby", "getUserLobbies", "joinLobby", "rollDice", "startTimer", "updateLobbyTimestamp", "validateLobby",
+    "getLifeChangeChart",
+    "createLobby", "deleteGame", "getUserLobbies", "joinLobby", "logGameChanges", "rollDice", "startNewGame",
+    "startTimer", "updateLobbyTimestamp", "validateLobby",
     "cleanupOldLobbies", "cleanupRateLimits",
     "addPlayer", "applyCombatDamage", "deletePlayer", "getPlayers", "incrementPlayerField",
     "updateCommanderDamage", "updatePlayer", "updatePlayerSettings",

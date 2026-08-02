@@ -89,6 +89,9 @@
                         </button>
                         <input id="timer-duration" type="number" value="3" class="field text-center" style="width: 4rem;" />
                     </div>
+                    <button id="history-button" class="btn btn-secondary btn-sm btn-block">
+                        <span>View Life Changes</span>
+                    </button>
                     <button class="btn btn-secondary btn-sm btn-block">
                         <span>New Feature</span>
                     </button>
@@ -197,6 +200,56 @@
 
             <div class="flex justify-end gap-4">
                 <button id="closeCommanderModal" class="btn btn-secondary">
+                    <span>Close</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Picker Modal -->
+    <div id="gamePickerModal" class="hidden fixed inset-0 flex justify-center items-center z-50" style="background: var(--scrim);">
+        <div class="history-modal-content panel p-6 sm:p-8 w-full max-w-lg space-y-6">
+            <h2 class="text-2xl sm:text-3xl font-bold text-center" style="color: var(--ink);">Select a Game</h2>
+
+            <div id="gamePickerList" class="flex flex-col w-full space-y-2" style="max-height: 60vh; overflow-y: auto;">
+                <!-- Game entries added dynamically -->
+            </div>
+
+            <div class="flex justify-end gap-4">
+                <button id="closeGamePickerModal" class="btn btn-secondary">
+                    <span>Close</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Life Change History Modal -->
+    <div id="historyModal" class="hidden fixed inset-0 flex justify-center items-center z-50" style="background: var(--scrim);">
+        <div class="history-modal-content panel p-6 sm:p-8 w-full max-w-3xl space-y-6">
+            <h2 id="historyModalTitle" class="text-2xl sm:text-3xl font-bold text-center" style="color: var(--ink);">Life Changes</h2>
+
+            <div class="flex gap-2 justify-center">
+                <button id="historyViewChartBtn" class="btn btn-primary btn-sm">
+                    <span>Chart</span>
+                </button>
+                <button id="historyViewListBtn" class="btn btn-secondary btn-sm">
+                    <span>List</span>
+                </button>
+            </div>
+
+            <div id="historyChartContainer" class="w-full flex justify-center items-center" style="min-height: 3rem;">
+                <!-- Chart image inserted dynamically -->
+            </div>
+
+            <div id="historyList" class="hidden flex-col w-full space-y-2" style="max-height: 55vh; overflow-y: auto;">
+                <!-- History entries added dynamically -->
+            </div>
+
+            <div class="flex justify-end gap-4">
+                <button id="backToGamePickerButton" class="btn btn-secondary">
+                    <span>Back</span>
+                </button>
+                <button id="closeHistoryModal" class="btn btn-secondary">
                     <span>Close</span>
                 </button>
             </div>
