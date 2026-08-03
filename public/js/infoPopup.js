@@ -10,6 +10,7 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
 }
 
 const recordPayInterest = functions.httpsCallable('recordPayInterest');
+const submitFeedback = functions.httpsCallable('submitFeedback');
 
 // Function to show usage example popup
 export function showUsageExamplePopup() {
@@ -89,6 +90,148 @@ export function showUsageExamplePopup() {
     });
 }
 
+// Function to show the feedback / recommendation popup
+export function showFeedbackPopup() {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'fixed inset-0 flex items-center justify-center z-50';
+    backdrop.style.cssText = `
+        background-color: var(--scrim);
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    `;
+
+    const popup = document.createElement('div');
+    popup.className = 'panel';
+    popup.style.cssText = `
+        padding: 20px;
+        max-width: 95%;
+        width: 420px;
+        display: flex;
+        flex-direction: column;
+        transform: scale(0.9);
+        transition: transform 0.3s ease-in-out;
+    `;
+
+    const title = document.createElement('h2');
+    title.textContent = 'Send Feedback';
+    title.style.cssText = `
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--ink);
+        margin: 0 0 10px 0;
+        text-align: center;
+    `;
+
+    const description = document.createElement('p');
+    description.textContent = 'Have a recommendation or found something that could be better? Let me know!';
+    description.style.cssText = `
+        font-size: 0.875rem;
+        color: var(--ink-dim);
+        margin: 0 0 14px 0;
+        text-align: center;
+    `;
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'field';
+    textarea.rows = 5;
+    textarea.maxLength = 2000;
+    textarea.placeholder = 'Your recommendation or feedback...';
+    textarea.style.resize = 'vertical';
+
+    const statusMessage = document.createElement('p');
+    statusMessage.style.cssText = `
+        font-size: 0.8125rem;
+        margin: 10px 0 0 0;
+        text-align: center;
+        min-height: 1.2em;
+    `;
+
+    const buttonRow = document.createElement('div');
+    buttonRow.style.cssText = 'display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 18px;';
+
+    const cancelButton = document.createElement('button');
+    cancelButton.className = 'btn btn-secondary';
+    cancelButton.textContent = 'Cancel';
+
+    const submitButton = document.createElement('button');
+    submitButton.className = 'btn btn-primary';
+    submitButton.textContent = 'Submit';
+
+    buttonRow.appendChild(cancelButton);
+    buttonRow.appendChild(submitButton);
+
+    popup.appendChild(title);
+    popup.appendChild(description);
+    popup.appendChild(textarea);
+    popup.appendChild(statusMessage);
+    popup.appendChild(buttonRow);
+    backdrop.appendChild(popup);
+    document.body.appendChild(backdrop);
+
+    // Animation
+    requestAnimationFrame(() => {
+        backdrop.style.opacity = '1';
+        popup.style.transform = 'scale(1)';
+        textarea.focus();
+    });
+
+    const close = () => {
+        backdrop.style.opacity = '0';
+        popup.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+            backdrop.remove();
+        }, 300);
+    };
+
+    cancelButton.addEventListener('click', close);
+    backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) close();
+    });
+
+    submitButton.addEventListener('click', async () => {
+        const message = textarea.value.trim();
+        if (!message) {
+            statusMessage.textContent = 'Please write something before submitting.';
+            statusMessage.style.color = 'var(--danger)';
+            return;
+        }
+
+        const originalText = submitButton.textContent;
+        submitButton.disabled = true;
+        cancelButton.disabled = true;
+        submitButton.textContent = 'Sending...';
+        statusMessage.textContent = '';
+
+        try {
+            await submitFeedback({ message });
+            statusMessage.textContent = 'Thank you for your feedback!';
+            statusMessage.style.color = 'var(--success)';
+            textarea.value = '';
+            setTimeout(close, 1500);
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            statusMessage.textContent = error.message || 'Failed to send feedback. Please try again.';
+            statusMessage.style.color = 'var(--danger)';
+            submitButton.disabled = false;
+            cancelButton.disabled = false;
+            submitButton.textContent = originalText;
+        }
+    });
+}
+
+// Shared container for the bottom-left utility buttons (info/help/usage
+// example/feedback), so their spacing scales together with the fluid .fab
+// size instead of each button being pinned to a fixed pixel offset.
+let fabRow = null;
+function getFabRow() {
+    if (!fabRow) {
+        fabRow = document.createElement('div');
+        fabRow.className = 'fab-row';
+        document.body.appendChild(fabRow);
+    }
+    return fabRow;
+}
+
 class InfoPopup {
     constructor() {
         this.isOpen = false;
@@ -98,12 +241,12 @@ class InfoPopup {
     addUsageExampleButton() {
         const usageExampleButton = document.createElement('button');
         usageExampleButton.id = 'usage-example-button';
-        usageExampleButton.className = 'fab fixed bottom-4 left-36 z-40';
+        usageExampleButton.className = 'fab';
         usageExampleButton.innerHTML = '<i class="fas fa-lightbulb"></i>';
         usageExampleButton.onclick = showUsageExamplePopup;
         usageExampleButton.title = 'Usage Example';
 
-        document.body.appendChild(usageExampleButton);
+        getFabRow().appendChild(usageExampleButton);
     }
 
     show(type = 'info') {
@@ -328,7 +471,6 @@ class InfoPopup {
 
 // Initialize and expose globally
 window.infoPopup = new InfoPopup();
-window.infoPopup.addUsageExampleButton();
 
 // Function to open the info popup
 function openInfoPopup() {
@@ -342,22 +484,35 @@ function openHelpPopup() {
 
 // Auto-initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    const row = getFabRow();
+
     // Create and add the info button to the page
     const infoButton = document.createElement('button');
     infoButton.id = 'info-button';
-    infoButton.className = 'fab fixed bottom-4 left-4 z-40';
+    infoButton.className = 'fab';
     infoButton.innerHTML = '<i class="fas fa-info"></i>';
     infoButton.onclick = openInfoPopup;
     infoButton.title = 'About';
+    row.appendChild(infoButton);
 
     // Create and add the performance notice button to the page
     const helpButton = document.createElement('button');
     helpButton.id = 'help-button';
-    helpButton.className = 'fab fixed bottom-4 left-20 z-40';
+    helpButton.className = 'fab';
     helpButton.innerHTML = '<i class="fas fa-clock"></i>';
     helpButton.onclick = openHelpPopup;
     helpButton.title = 'Performance Notice';
+    row.appendChild(helpButton);
 
-    document.body.appendChild(infoButton);
-    document.body.appendChild(helpButton);
+    // Create and add the usage example button to the page
+    window.infoPopup.addUsageExampleButton();
+
+    // Create and add the feedback button to the page
+    const feedbackButton = document.createElement('button');
+    feedbackButton.id = 'feedback-button';
+    feedbackButton.className = 'fab';
+    feedbackButton.innerHTML = '<i class="fas fa-comment"></i>';
+    feedbackButton.onclick = showFeedbackPopup;
+    feedbackButton.title = 'Feedback';
+    row.appendChild(feedbackButton);
 });

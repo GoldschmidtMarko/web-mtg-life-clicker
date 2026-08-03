@@ -7,6 +7,7 @@ camelCase to match the JS originals instead of following PEP 8.
 
 from app.account import recordPayInterest, savePlayerData
 from app.charts import getLifeChangeChart
+from app.feedback import submitFeedback
 from app.lobbies import (
     createLobby,
     deleteGame,
@@ -35,6 +36,7 @@ from app.warmup import heartbeat, quickWarmup, warmUpFunctions
 __all__ = [
     "recordPayInterest", "savePlayerData",
     "getLifeChangeChart",
+    "submitFeedback",
     "createLobby", "deleteGame", "getUserLobbies", "joinLobby", "logGameChanges", "rollDice", "startNewGame",
     "startTimer", "updateLobbyTimestamp", "validateLobby",
     "cleanupOldLobbies", "cleanupRateLimits",

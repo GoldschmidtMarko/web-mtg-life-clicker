@@ -202,8 +202,10 @@ a { color: inherit; }
 .btn-block { width: 100%; }
 
 .fab {
-  width: 3rem;
-  height: 3rem;
+  /* Fluid sizing instead of a fixed 3rem: shrinks on narrow phones, grows
+     on large displays (this app is sometimes shown on a TV/big screen). */
+  width: clamp(2.5rem, 3vw + 1.5rem, 4rem);
+  height: clamp(2.5rem, 3vw + 1.5rem, 4rem);
   border-radius: 50%;
   background: var(--card);
   border: 1px solid var(--border);
@@ -213,11 +215,25 @@ a { color: inherit; }
   justify-content: center;
   box-shadow: var(--shadow-md);
   cursor: pointer;
-  font-size: 1.05rem;
+  font-size: clamp(1rem, 1.2vw + 0.6rem, 1.5rem);
+  flex-shrink: 0;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
 }
 .fab:hover { color: var(--accent); border-color: var(--accent); transform: translateY(-2px); }
 .fab:active { transform: translateY(0); }
+
+/* Groups the bottom-left utility buttons (info/help/usage/feedback) so
+   their spacing scales together with the fluid .fab size above, instead
+   of each button being pinned to a fixed pixel offset. */
+.fab-row {
+  position: fixed;
+  bottom: clamp(0.75rem, 2vw, 1.5rem);
+  left: clamp(0.75rem, 2vw, 1.5rem);
+  display: flex;
+  align-items: center;
+  gap: clamp(0.5rem, 1.5vw, 1rem);
+  z-index: 40;
+}
 
 .icon-btn {
   display: inline-flex;
