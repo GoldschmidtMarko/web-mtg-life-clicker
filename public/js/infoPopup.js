@@ -219,6 +219,19 @@ export function showFeedbackPopup() {
     });
 }
 
+// Shared container for the bottom-left utility buttons (info/help/usage
+// example/feedback), so their spacing scales together with the fluid .fab
+// size instead of each button being pinned to a fixed pixel offset.
+let fabRow = null;
+function getFabRow() {
+    if (!fabRow) {
+        fabRow = document.createElement('div');
+        fabRow.className = 'fab-row';
+        document.body.appendChild(fabRow);
+    }
+    return fabRow;
+}
+
 class InfoPopup {
     constructor() {
         this.isOpen = false;
@@ -228,12 +241,12 @@ class InfoPopup {
     addUsageExampleButton() {
         const usageExampleButton = document.createElement('button');
         usageExampleButton.id = 'usage-example-button';
-        usageExampleButton.className = 'fab fixed bottom-4 left-36 z-40';
+        usageExampleButton.className = 'fab';
         usageExampleButton.innerHTML = '<i class="fas fa-lightbulb"></i>';
         usageExampleButton.onclick = showUsageExamplePopup;
         usageExampleButton.title = 'Usage Example';
 
-        document.body.appendChild(usageExampleButton);
+        getFabRow().appendChild(usageExampleButton);
     }
 
     show(type = 'info') {
@@ -458,7 +471,6 @@ class InfoPopup {
 
 // Initialize and expose globally
 window.infoPopup = new InfoPopup();
-window.infoPopup.addUsageExampleButton();
 
 // Function to open the info popup
 function openInfoPopup() {
@@ -472,31 +484,35 @@ function openHelpPopup() {
 
 // Auto-initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    const row = getFabRow();
+
     // Create and add the info button to the page
     const infoButton = document.createElement('button');
     infoButton.id = 'info-button';
-    infoButton.className = 'fab fixed bottom-4 left-4 z-40';
+    infoButton.className = 'fab';
     infoButton.innerHTML = '<i class="fas fa-info"></i>';
     infoButton.onclick = openInfoPopup;
     infoButton.title = 'About';
+    row.appendChild(infoButton);
 
     // Create and add the performance notice button to the page
     const helpButton = document.createElement('button');
     helpButton.id = 'help-button';
-    helpButton.className = 'fab fixed bottom-4 left-20 z-40';
+    helpButton.className = 'fab';
     helpButton.innerHTML = '<i class="fas fa-clock"></i>';
     helpButton.onclick = openHelpPopup;
     helpButton.title = 'Performance Notice';
+    row.appendChild(helpButton);
+
+    // Create and add the usage example button to the page
+    window.infoPopup.addUsageExampleButton();
 
     // Create and add the feedback button to the page
     const feedbackButton = document.createElement('button');
     feedbackButton.id = 'feedback-button';
-    feedbackButton.className = 'fab fixed bottom-4 left-52 z-40';
+    feedbackButton.className = 'fab';
     feedbackButton.innerHTML = '<i class="fas fa-comment"></i>';
     feedbackButton.onclick = showFeedbackPopup;
     feedbackButton.title = 'Feedback';
-
-    document.body.appendChild(infoButton);
-    document.body.appendChild(helpButton);
-    document.body.appendChild(feedbackButton);
+    row.appendChild(feedbackButton);
 });
