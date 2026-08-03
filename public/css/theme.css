@@ -361,6 +361,24 @@ label.field-label {
   cursor: not-allowed;
 }
 
+/* Spinner ------------------------------------------------------------------ */
+
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: spinner-rotate 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
 /* Divider ---------------------------------------------------------------- */
 
 .divider {

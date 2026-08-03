@@ -46,6 +46,7 @@ const logoutButton = document.getElementById('logout-button');
 const joinLobbyUserName = document.getElementById('remote-player-name-input');
 const myLobbiesButton = document.getElementById('my-lobbies-button');
 const myLobbiesButtonLabel = document.getElementById('my-lobbies-button-label');
+const myLobbiesSpinner = document.getElementById('my-lobbies-spinner');
 const myLobbiesModal = document.getElementById('my-lobbies-modal');
 const myLobbiesList = document.getElementById('my-lobbies-list');
 const closeMyLobbiesModalButton = document.getElementById('close-my-lobbies-modal');
@@ -126,20 +127,30 @@ function closeMyLobbiesModal() {
     document.body.classList.remove('modal-open');
 }
 
+// Shows/hides the button's fetch spinner and toggles its clickability while loading.
+function setMyLobbiesLoading(isLoading) {
+    if (!myLobbiesButton || !myLobbiesSpinner) return;
+    myLobbiesSpinner.classList.toggle('hidden', !isLoading);
+    myLobbiesButton.disabled = isLoading;
+}
+
 // Render the list of lobbies the signed-in player created or joined
 function renderMyLobbies(lobbies) {
     if (!myLobbiesButton || !myLobbiesList) return;
 
     myLobbiesList.innerHTML = '';
 
-    if (!lobbies.length) {
-        myLobbiesButton.classList.add('hidden');
-        closeMyLobbiesModal();
-        return;
+    if (myLobbiesButtonLabel) {
+        myLobbiesButtonLabel.textContent = lobbies.length ? `Your Lobbies (${lobbies.length})` : 'Your Lobbies';
     }
 
-    if (myLobbiesButtonLabel) {
-        myLobbiesButtonLabel.textContent = `Your Lobbies (${lobbies.length})`;
+    if (!lobbies.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-sm text-center';
+        empty.style.color = 'var(--ink-faint)';
+        empty.textContent = "You haven't created or joined any lobbies yet.";
+        myLobbiesList.appendChild(empty);
+        return;
     }
 
     lobbies.forEach((lobby) => {
@@ -180,19 +191,29 @@ function renderMyLobbies(lobbies) {
 
         myLobbiesList.appendChild(row);
     });
-
-    myLobbiesButton.classList.remove('hidden');
 }
 
-// Fetch and render the lobbies the signed-in player created or joined
+// Fetch and render the lobbies the signed-in player created or joined.
+// The button is shown (with a spinner) before this resolves, so the player
+// always sees it right away instead of it popping in once data arrives.
 async function loadMyLobbies() {
     if (!myLobbiesButton || !myLobbiesList) return;
+    myLobbiesButton.classList.remove('hidden');
+    setMyLobbiesLoading(true);
     try {
         const result = await getUserLobbies();
         renderMyLobbies(result.data.lobbies || []);
     } catch (error) {
         console.error('Error loading your lobbies:', error);
-        myLobbiesButton.classList.add('hidden');
+        if (myLobbiesButtonLabel) myLobbiesButtonLabel.textContent = 'Your Lobbies';
+        myLobbiesList.innerHTML = '';
+        const errEl = document.createElement('p');
+        errEl.className = 'text-sm text-center';
+        errEl.style.color = 'var(--ink-faint)';
+        errEl.textContent = 'Failed to load your lobbies. Try again later.';
+        myLobbiesList.appendChild(errEl);
+    } finally {
+        setMyLobbiesLoading(false);
     }
 }
 

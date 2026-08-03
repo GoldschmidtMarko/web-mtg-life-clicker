@@ -104,8 +104,9 @@
             </div>
         </div>
 
-        <!-- Your Lobbies: shown once signed in, if the player created or joined any -->
+        <!-- Your Lobbies: shown as soon as the player signs in; fetches in the background -->
         <button id="my-lobbies-button" class="btn btn-secondary btn-block hidden w-full max-w-sm sm:max-w-md mt-4">
+            <span id="my-lobbies-spinner" class="spinner hidden"></span>
             <span id="my-lobbies-button-label">Your Lobbies</span>
         </button>
         </div>
