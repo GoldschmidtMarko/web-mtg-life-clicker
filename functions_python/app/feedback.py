@@ -1,8 +1,9 @@
 """User-submitted feedback and feature recommendations from index.html."""
 
+from firebase_admin import firestore
 from firebase_functions import https_fn
 
-from .common import Err, now_ms
+from .common import Err
 from .firebase_app import db
 from .rate_limiting import check_rate_limit
 from .warmup import track_write, with_warmup
@@ -40,7 +41,7 @@ def submitFeedback(request: https_fn.CallableRequest) -> dict:
     feedback_ref = db.collection("feedback").document()
     feedback_ref.set({
         "message": message,
-        "createdAt": now_ms(),
+        "createdAt": firestore.SERVER_TIMESTAMP,
         "userId": user_id,
         "userName": user_name,
     })
