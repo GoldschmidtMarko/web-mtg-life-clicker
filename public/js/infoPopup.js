@@ -10,6 +10,7 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
 }
 
 const recordPayInterest = functions.httpsCallable('recordPayInterest');
+const submitFeedback = functions.httpsCallable('submitFeedback');
 
 // Function to show usage example popup
 export function showUsageExamplePopup() {
@@ -86,6 +87,135 @@ export function showUsageExamplePopup() {
     closeButton.addEventListener('click', close);
     backdrop.addEventListener('click', (e) => {
         if (e.target === backdrop) close();
+    });
+}
+
+// Function to show the feedback / recommendation popup
+export function showFeedbackPopup() {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'fixed inset-0 flex items-center justify-center z-50';
+    backdrop.style.cssText = `
+        background-color: var(--scrim);
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    `;
+
+    const popup = document.createElement('div');
+    popup.className = 'panel';
+    popup.style.cssText = `
+        padding: 20px;
+        max-width: 95%;
+        width: 420px;
+        display: flex;
+        flex-direction: column;
+        transform: scale(0.9);
+        transition: transform 0.3s ease-in-out;
+    `;
+
+    const title = document.createElement('h2');
+    title.textContent = 'Send Feedback';
+    title.style.cssText = `
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--ink);
+        margin: 0 0 10px 0;
+        text-align: center;
+    `;
+
+    const description = document.createElement('p');
+    description.textContent = 'Have a recommendation or found something that could be better? Let me know!';
+    description.style.cssText = `
+        font-size: 0.875rem;
+        color: var(--ink-dim);
+        margin: 0 0 14px 0;
+        text-align: center;
+    `;
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'field';
+    textarea.rows = 5;
+    textarea.maxLength = 2000;
+    textarea.placeholder = 'Your recommendation or feedback...';
+    textarea.style.resize = 'vertical';
+
+    const statusMessage = document.createElement('p');
+    statusMessage.style.cssText = `
+        font-size: 0.8125rem;
+        margin: 10px 0 0 0;
+        text-align: center;
+        min-height: 1.2em;
+    `;
+
+    const buttonRow = document.createElement('div');
+    buttonRow.style.cssText = 'display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 18px;';
+
+    const cancelButton = document.createElement('button');
+    cancelButton.className = 'btn btn-secondary';
+    cancelButton.textContent = 'Cancel';
+
+    const submitButton = document.createElement('button');
+    submitButton.className = 'btn btn-primary';
+    submitButton.textContent = 'Submit';
+
+    buttonRow.appendChild(cancelButton);
+    buttonRow.appendChild(submitButton);
+
+    popup.appendChild(title);
+    popup.appendChild(description);
+    popup.appendChild(textarea);
+    popup.appendChild(statusMessage);
+    popup.appendChild(buttonRow);
+    backdrop.appendChild(popup);
+    document.body.appendChild(backdrop);
+
+    // Animation
+    requestAnimationFrame(() => {
+        backdrop.style.opacity = '1';
+        popup.style.transform = 'scale(1)';
+        textarea.focus();
+    });
+
+    const close = () => {
+        backdrop.style.opacity = '0';
+        popup.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+            backdrop.remove();
+        }, 300);
+    };
+
+    cancelButton.addEventListener('click', close);
+    backdrop.addEventListener('click', (e) => {
+        if (e.target === backdrop) close();
+    });
+
+    submitButton.addEventListener('click', async () => {
+        const message = textarea.value.trim();
+        if (!message) {
+            statusMessage.textContent = 'Please write something before submitting.';
+            statusMessage.style.color = 'var(--danger)';
+            return;
+        }
+
+        const originalText = submitButton.textContent;
+        submitButton.disabled = true;
+        cancelButton.disabled = true;
+        submitButton.textContent = 'Sending...';
+        statusMessage.textContent = '';
+
+        try {
+            await submitFeedback({ message });
+            statusMessage.textContent = 'Thank you for your feedback!';
+            statusMessage.style.color = 'var(--success)';
+            textarea.value = '';
+            setTimeout(close, 1500);
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            statusMessage.textContent = error.message || 'Failed to send feedback. Please try again.';
+            statusMessage.style.color = 'var(--danger)';
+            submitButton.disabled = false;
+            cancelButton.disabled = false;
+            submitButton.textContent = originalText;
+        }
     });
 }
 
@@ -358,6 +488,15 @@ document.addEventListener('DOMContentLoaded', function() {
     helpButton.onclick = openHelpPopup;
     helpButton.title = 'Performance Notice';
 
+    // Create and add the feedback button to the page
+    const feedbackButton = document.createElement('button');
+    feedbackButton.id = 'feedback-button';
+    feedbackButton.className = 'fab fixed bottom-4 left-52 z-40';
+    feedbackButton.innerHTML = '<i class="fas fa-comment"></i>';
+    feedbackButton.onclick = showFeedbackPopup;
+    feedbackButton.title = 'Feedback';
+
     document.body.appendChild(infoButton);
     document.body.appendChild(helpButton);
+    document.body.appendChild(feedbackButton);
 });
