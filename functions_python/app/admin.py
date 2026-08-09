@@ -79,7 +79,7 @@ def _users_overview(limit=15):
                 "registrationDate": _ms(d.get("registrationDate")),
             })
         result["total"] = len(rows)
-        rows.sort(key=lambda r: r["loginCount"], reverse=True)
+        rows.sort(key=lambda r: r["lastLogin"] or 0, reverse=True)  # most recent first
         result["top"] = rows[:limit]
     except Exception as error:
         print(f"usage _users_overview error: {error}")
