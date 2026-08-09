@@ -3,6 +3,7 @@
 from firebase_admin import firestore
 from firebase_functions import https_fn
 
+from .analytics import bump_summary
 from .common import Err, authenticate_user
 from .firebase_app import db
 from .rate_limiting import check_firestore_rate_limit
@@ -18,6 +19,8 @@ def savePlayerData(request: https_fn.CallableRequest) -> dict:
 
     user_id = auth.uid
     token = auth.token or {}
+
+    bump_summary(["logins"], True)  # usage analytics: one login event
 
     player_data = {
         "name": token.get("name", "Unknown"),
