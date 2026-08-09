@@ -16,7 +16,7 @@ from .firebase_app import db
 from .warmup import with_warmup
 
 # Emails allowed to view the usage dashboard.
-ADMIN_EMAILS = {"mgoldschmidt01@gmail.com"}
+ADMIN_EMAILS = {"mgoldschmidt01@gmail.com", "ma.goldschmidt@web.de"}
 
 
 def _is_emulator() -> bool:

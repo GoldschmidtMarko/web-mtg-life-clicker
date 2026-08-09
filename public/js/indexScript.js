@@ -39,11 +39,12 @@ const cleanupOldLobbies = functions.httpsCallable('cleanupOldLobbies');
 // convenience only — getUsageStats enforces the admin allow-list server-side.
 // On localhost any signed-in account may see it (mirrors the emulator bypass);
 // in production only the admin email does.
-const USAGE_ADMIN_EMAIL = 'mgoldschmidt01@gmail.com';
+const USAGE_ADMIN_EMAILS = ['mgoldschmidt01@gmail.com', 'ma.goldschmidt@web.de'];
 const USAGE_IS_DEV_HOST = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 function updateUsageLink(user) {
     const link = document.getElementById('usage-link');
-    if (link) link.classList.toggle('hidden', !(user && (USAGE_IS_DEV_HOST || user.email === USAGE_ADMIN_EMAIL)));
+    const allowed = !!user && (USAGE_IS_DEV_HOST || USAGE_ADMIN_EMAILS.includes((user.email || '').toLowerCase()));
+    if (link) link.classList.toggle('hidden', !allowed);
 }
 
 // Wait for the DOM to be fully loaded
