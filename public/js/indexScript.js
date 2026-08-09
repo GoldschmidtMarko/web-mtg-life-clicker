@@ -35,6 +35,17 @@ const getUserLobbies = functions.httpsCallable('getUserLobbies');
 const savePlayerData = functions.httpsCallable('savePlayerData');
 const cleanupOldLobbies = functions.httpsCallable('cleanupOldLobbies');
 
+// Admin-only shortcut to the usage dashboard. Visibility is a client-side
+// convenience only — getUsageStats enforces the admin allow-list server-side.
+// On localhost any signed-in account may see it (mirrors the emulator bypass);
+// in production only the admin email does.
+const USAGE_ADMIN_EMAIL = 'mgoldschmidt01@gmail.com';
+const USAGE_IS_DEV_HOST = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+function updateUsageLink(user) {
+    const link = document.getElementById('usage-link');
+    if (link) link.classList.toggle('hidden', !(user && (USAGE_IS_DEV_HOST || user.email === USAGE_ADMIN_EMAIL)));
+}
+
 // Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
 // Get references to HTML elements *inside* this listener
@@ -239,6 +250,7 @@ document.addEventListener('keydown', (event) => {
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
+        updateUsageLink(user);
 
         // Save player data to Firestore via backend function
         await callSavePlayerData(user);
@@ -266,6 +278,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
         if (logoutButton) logoutButton.classList.remove('hidden');
     } else {
         currentUser = null;
+        updateUsageLink(null);
 
         // Disable buttons as user is not authenticated
         if (createLobbyBtn) createLobbyBtn.disabled = true;

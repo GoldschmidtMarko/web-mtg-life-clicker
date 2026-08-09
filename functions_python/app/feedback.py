@@ -3,6 +3,7 @@
 from firebase_admin import firestore
 from firebase_functions import https_fn
 
+from .analytics import bump_summary
 from .common import Err
 from .firebase_app import db
 from .rate_limiting import check_rate_limit
@@ -37,6 +38,8 @@ def submitFeedback(request: https_fn.CallableRequest) -> dict:
     if not check_rate_limit(rate_limit_key, "submitFeedback", max_requests, 600000):
         raise https_fn.HttpsError(Err.RESOURCE_EXHAUSTED,
                                    "You're submitting feedback too quickly. Please try again later.")
+
+    bump_summary(["feedback"], user_id is not None)  # usage analytics
 
     feedback_ref = db.collection("feedback").document()
     feedback_ref.set({

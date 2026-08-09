@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <script src="js/util/themeInit.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="Usage dashboard for MTG Life Clicker (admin only).">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#6d5efc">
+    <link rel="icon" type="image/png" href="./images/icon.png">
+    <title>Usage Dashboard - MTG Life Clicker</title>
+    <link rel="stylesheet" href="./css/tailwind.css">
+    <link rel="stylesheet" href="./css/theme.css">
+    <link rel="stylesheet" href="./style.css">
+    <style>
+        .hidden { display: none !important; }
+        .gate { text-align: center; padding: 3rem 1.5rem; color: var(--ink-dim); }
+        .gate h2 { color: var(--ink); margin-bottom: 0.5rem; font-size: 1.25rem; font-weight: 700; }
+        .gate .gate-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+        .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin: 2rem 0 0.75rem; }
+        .section-head h2 { font-size: 1.05rem; color: var(--ink); margin: 0; font-weight: 700; }
+        .section-head .hint { color: var(--ink-faint); font-size: 0.8rem; }
+
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.85rem; }
+        .stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; box-shadow: var(--shadow-sm); }
+        .stat__label { color: var(--ink-dim); font-size: 0.78rem; font-weight: 600; }
+        .stat__value { color: var(--ink); font-size: 1.9rem; font-weight: 700; line-height: 1.2; margin-top: 0.15rem; }
+        .stat__split { display: flex; gap: 0.9rem; color: var(--ink-faint); font-size: 0.8rem; margin-top: 0.2rem; }
+
+        .usage-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+        .table-scroll { overflow-x: auto; }
+        .usage-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .usage-table th, .usage-table td { padding: 0.55rem 0.8rem; text-align: left; white-space: nowrap; }
+        .usage-table thead th { color: var(--ink-dim); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--border); }
+        .usage-table tbody tr { border-bottom: 1px solid var(--border); }
+        .usage-table tbody tr:last-child { border-bottom: none; }
+        .usage-table td.rank { color: var(--ink-faint); width: 2rem; }
+        .usage-table td.name { color: var(--ink); font-weight: 500; white-space: normal; }
+        .usage-table td.name .sub { display: block; color: var(--ink-faint); font-size: 0.72rem; font-family: monospace; font-weight: 400; }
+        .usage-table th.n, .usage-table td.n { text-align: right; }
+        .usage-table td.n { color: var(--ink); font-variant-numeric: tabular-nums; }
+        .usage-table td.when { color: var(--ink-dim); font-size: 0.8rem; }
+        .usage-empty { padding: 1.25rem; color: var(--ink-faint); text-align: center; font-size: 0.85rem; }
+        .users-total { color: var(--ink-dim); font-size: 0.85rem; }
+        .users-total b { color: var(--ink); font-size: 1.05rem; }
+
+        /* Feedback list */
+        .fb { padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--border); }
+        .fb:last-child { border-bottom: none; }
+        .fb__msg { color: var(--ink); font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; }
+        .fb__meta { color: var(--ink-faint); font-size: 0.72rem; margin-top: 0.25rem; }
+
+        /* Usage timeline (SVG bar chart) */
+        .timeline-wrap { position: relative; }
+        #usage-timeline svg { width: 100%; height: auto; display: block; }
+        .tl-bar-anon { fill: var(--border-strong); }
+        .tl-bar-authed { fill: var(--accent); }
+        .tl-grid { stroke: var(--border); stroke-width: 1; }
+        .tl-axis { fill: var(--ink-faint); font-size: 11px; }
+        .tl-hit { fill: transparent; cursor: default; }
+        .tl-legend { display: flex; gap: 1rem; justify-content: flex-end; margin: 0 0.25rem 0.25rem; font-size: 0.75rem; color: var(--ink-dim); }
+        .tl-legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+        .tl-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+        .tl-tooltip { position: absolute; pointer-events: none; z-index: 5; background: var(--ink); color: var(--bg); padding: 0.35rem 0.55rem; border-radius: var(--radius-sm); font-size: 0.75rem; white-space: nowrap; transform: translate(-50%, -115%); box-shadow: var(--shadow-md); }
+        .tl-tooltip.hidden { display: none; }
+        .tl-empty { padding: 1.5rem; text-align: center; color: var(--ink-faint); font-size: 0.85rem; }
+    </style>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
+    <script src="js/usageScript.js" type="module"></script>
+    <script type="module">
+        import { initThemeToggle } from './js/util/theme.js';
+        document.addEventListener('DOMContentLoaded', () => initThemeToggle());
+    </script>
+</head>
+
+<body class="m-0 p-0 w-full overflow-x-hidden min-h-screen-dynamic" style="justify-content: flex-start;">
+    <div class="flex flex-col items-center px-4 sm:px-6 py-8 sm:py-12 w-full">
+
+        <div class="w-full max-w-4xl flex items-center justify-between mb-6">
+            <a href="index.html" class="btn btn-ghost btn-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span>Back</span>
+            </a>
+            <button id="theme-toggle" class="icon-btn theme-toggle" aria-label="Toggle day and night theme" title="Toggle theme">
+                <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="4"></circle>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+                </svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="w-full max-w-4xl">
+            <h1 class="text-3xl sm:text-4xl font-bold mb-2" style="color: var(--ink);">Usage Dashboard</h1>
+            <p class="text-sm mb-8" style="color: var(--ink-dim);">Analytics overview for MTG Life Clicker — admin only</p>
+
+            <div id="gate-signin" class="gate">
+                <div class="gate-icon">🔒</div>
+                <h2>Sign in required</h2>
+                <p>Sign in with Google on the home page to view the usage dashboard.</p>
+            </div>
+            <div id="gate-denied" class="gate hidden">
+                <div class="gate-icon">⛔</div>
+                <h2>Access denied</h2>
+                <p>Your account is not authorized to view this dashboard.</p>
+            </div>
+            <div id="gate-loading" class="gate hidden">
+                <div class="gate-icon">⏳</div>
+                <p>Loading usage data…</p>
+            </div>
+            <div id="gate-error" class="gate hidden">
+                <div class="gate-icon">⚠️</div>
+                <h2>Could not load</h2>
+                <p id="gate-error-msg"></p>
+            </div>
+
+            <div id="dashboard" class="hidden">
+                <div class="section-head">
+                    <h2>Overview</h2>
+                    <button id="refresh-btn" class="btn btn-secondary btn-sm" type="button">Refresh</button>
+                </div>
+                <div id="summary-cards" class="stat-grid"></div>
+
+                <div class="section-head">
+                    <h2>Usage over time</h2><span class="hint">actions per day (last 30 days)</span>
+                </div>
+                <div class="usage-card" style="padding: 0.85rem 0.75rem 0.6rem;">
+                    <div class="timeline-wrap"><div id="usage-timeline"></div></div>
+                </div>
+
+                <div class="section-head">
+                    <h2>Users</h2><span class="users-total">Total registered: <b id="users-total">0</b></span>
+                </div>
+                <div class="usage-card"><div class="table-scroll" id="users-table"></div></div>
+
+                <div class="section-head">
+                    <h2>Feedback</h2><span class="hint">most recent first</span>
+                </div>
+                <div class="usage-card"><div id="feedback-list"></div></div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
