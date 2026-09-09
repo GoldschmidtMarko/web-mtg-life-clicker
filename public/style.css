@@ -119,7 +119,7 @@ body {
     }
     
     /* Scale down input fields */
-    #remote-player-name-input, #lobby-code-input {
+    #player-name-input, #lobby-code-input {
         padding: 0.5rem !important;
         font-size: 1rem !important;
         margin: 0.25rem 0 !important;

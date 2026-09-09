@@ -55,7 +55,7 @@ const lobbyCodeInput = document.getElementById('lobby-code-input');
 const joinLobbyBtn = document.getElementById('join-lobby-btn');
 const signInButton = document.getElementById('sign-in-button');
 const logoutButton = document.getElementById('logout-button');
-const joinLobbyUserName = document.getElementById('remote-player-name-input');
+const playerNameInput = document.getElementById('player-name-input');
 const myLobbiesButton = document.getElementById('my-lobbies-button');
 const myLobbiesButtonLabel = document.getElementById('my-lobbies-button-label');
 const myLobbiesSpinner = document.getElementById('my-lobbies-spinner');
@@ -65,7 +65,39 @@ const closeMyLobbiesModalButton = document.getElementById('close-my-lobbies-moda
 
 let currentUser = null;
 
-// Function to save or update player data via backend function
+// The player-name field is shared by Create and Join. Remembered locally so
+// an anonymous player (no Google profile to draw a name from) doesn't have
+// to retype it every visit.
+const PLAYER_NAME_STORAGE_KEY = 'mtg-life-clicker-player-name';
+if (playerNameInput) {
+    try {
+        const savedName = localStorage.getItem(PLAYER_NAME_STORAGE_KEY);
+        if (savedName) playerNameInput.value = savedName;
+    } catch (error) {
+        // Storage can be unavailable (private browsing, disabled). Non-fatal.
+    }
+    playerNameInput.addEventListener('input', () => {
+        try {
+            localStorage.setItem(PLAYER_NAME_STORAGE_KEY, playerNameInput.value.trim());
+        } catch (error) {
+            // Ignore - the field still works for this session.
+        }
+    });
+}
+
+// Resolves the name to use for a new player: whatever's typed, else the
+// signed-in Google account's first name, else a generic fallback.
+function resolvePlayerName() {
+    const typed = playerNameInput ? playerNameInput.value.trim() : '';
+    if (typed) return typed;
+    if (currentUser && currentUser.displayName) return currentUser.displayName.split(' ')[0];
+    return 'Player';
+}
+
+// Function to save or update player data via backend function. Only called
+// for a real Google-linked account - an anonymous session has no profile
+// worth persisting, and skipping it keeps the usage dashboard's user list
+// meaningful.
 async function callSavePlayerData(user) {
     try {
         const result = await savePlayerData();
@@ -192,8 +224,7 @@ function renderMyLobbies(lobbies) {
             row.disabled = true;
             row.querySelector('.lobby-row-code').textContent = 'Joining...';
             try {
-                const playerName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'Player';
-                await joinLobbyAndRedirect(lobby.code, playerName);
+                await joinLobbyAndRedirect(lobby.code, resolvePlayerName());
             } catch (error) {
                 console.error('Error joining lobby:', error);
                 showErrorMessage(error);
@@ -253,41 +284,48 @@ firebase.auth().onAuthStateChanged(async (user) => {
         currentUser = user;
         updateUsageLink(user);
 
-        // Save player data to Firestore via backend function
-        await callSavePlayerData(user);
+        // A real Google account gets its profile persisted (name/email,
+        // powers the usage dashboard's user list) and prefills the name
+        // field. A bare anonymous session has neither.
+        if (!user.isAnonymous) {
+            await callSavePlayerData(user);
+            if (playerNameInput && !playerNameInput.value.trim() && user.displayName) {
+                playerNameInput.value = user.displayName.split(' ')[0];
+            }
+        }
 
         // Load the lobbies this player created or joined
         loadMyLobbies();
 
-        // Enable buttons and hide sign-in button when authenticated
+        // Every visitor (anonymous or not) can use the app immediately.
         if (createLobbyBtn) createLobbyBtn.disabled = false;
         if (joinLobbyBtn) joinLobbyBtn.disabled = false;
+
+        // "Sign in with Google" is an upgrade offered only while anonymous;
+        // once linked to a real account, show Logout instead.
         if (signInButton) {
-            // Restore original sign-in button state before hiding it
             signInButton.disabled = false;
-            signInButton.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                <span>Sign in with Google</span>
-            `;
-            signInButton.classList.add('hidden');
+            signInButton.classList.toggle('hidden', !user.isAnonymous);
         }
-        if (logoutButton) logoutButton.classList.remove('hidden');
+        if (logoutButton) logoutButton.classList.toggle('hidden', user.isAnonymous);
     } else {
         currentUser = null;
         updateUsageLink(null);
 
-        // Disable buttons as user is not authenticated
-        if (createLobbyBtn) createLobbyBtn.disabled = true;
-        if (joinLobbyBtn) joinLobbyBtn.disabled = true;
-        if (signInButton) signInButton.classList.remove('hidden');
-        if (logoutButton) logoutButton.classList.add('hidden');
-        if (myLobbiesButton) myLobbiesButton.classList.add('hidden');
-        closeMyLobbiesModal();
+        // No session at all yet (first visit, or a previous one expired) -
+        // bootstrap one anonymously so the app works without requiring a
+        // Google account. This handler fires again once it's ready.
+        try {
+            await firebase.auth().signInAnonymously();
+        } catch (error) {
+            console.error('Anonymous sign-in failed:', error);
+            if (createLobbyBtn) createLobbyBtn.disabled = true;
+            if (joinLobbyBtn) joinLobbyBtn.disabled = true;
+            if (signInButton) signInButton.classList.remove('hidden');
+            if (logoutButton) logoutButton.classList.add('hidden');
+            if (myLobbiesButton) myLobbiesButton.classList.add('hidden');
+            closeMyLobbiesModal();
+        }
     }
 });
 
@@ -371,7 +409,24 @@ function signIn(button = null) {
     }
     
     const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider)
+    // Linking (rather than a fresh sign-in) keeps the current anonymous uid -
+    // and everything already created under it - once Google is attached.
+    const current = auth.currentUser;
+    const signInPromise = (current && current.isAnonymous)
+        ? current.linkWithPopup(provider).catch((error) => {
+            if (error.code === 'auth/credential-already-in-use') {
+                // This Google account is already tied to a different
+                // (older) uid - fall back to signing into that one instead.
+                // Any lobbies created under the anonymous session stay put,
+                // just no longer linked to this account.
+                const credential = firebase.auth.GoogleAuthProvider.credentialFromError(error);
+                return auth.signInWithCredential(credential);
+            }
+            throw error;
+        })
+        : auth.signInWithPopup(provider);
+
+    signInPromise
         .then((result) => {
             // User signed in successfully - auth state change will handle UI updates
         })
@@ -434,9 +489,11 @@ function signOut(button = null) {
     }
 }
 
-// Function to show sign-in warning popup
+// Shown only in the rare case the background anonymous sign-in hasn't
+// finished (or failed) by the time a disabled button somehow still got
+// clicked - not a "you must use Google" gate anymore.
 function showSignInWarning() {
-    alert("⚠️ Please sign in with Google first to create or join a lobby!");
+    alert("⚠️ Still connecting - please wait a moment and try again.");
 }
 
 // Event listener for Create New Lobby button *inside* this listener
@@ -460,7 +517,7 @@ if (createLobbyBtn) {
             // Cleanup old lobbies in the background (non-blocking)
             performLobbyCleanup();
             
-            const playerName = currentUser.displayName.split(" ")[0] || "Player"
+            const playerName = resolvePlayerName();
             const playerClass = new Player(
                 currentUser.uid,
                 playerName,
@@ -506,7 +563,7 @@ if (joinLobbyBtn) {
             // Cleanup old lobbies in the background (non-blocking)
             performLobbyCleanup();
             
-            const playerName = joinLobbyUserName.value || "Player"
+            const playerName = resolvePlayerName();
             const lobbyCode = lobbyCodeInput.value;
 
             await joinLobbyAndRedirect(lobbyCode, playerName);

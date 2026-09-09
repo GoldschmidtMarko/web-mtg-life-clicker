@@ -4,7 +4,7 @@ from firebase_admin import firestore
 from firebase_functions import https_fn
 
 from .analytics import bump_summary
-from .common import Err
+from .common import Err, is_google_authed
 from .firebase_app import db
 from .rate_limiting import check_rate_limit
 from .warmup import track_write, with_warmup
@@ -39,7 +39,7 @@ def submitFeedback(request: https_fn.CallableRequest) -> dict:
         raise https_fn.HttpsError(Err.RESOURCE_EXHAUSTED,
                                    "You're submitting feedback too quickly. Please try again later.")
 
-    bump_summary(["feedback"], user_id is not None)  # usage analytics
+    bump_summary(["feedback"], is_google_authed(auth))  # usage analytics
 
     feedback_ref = db.collection("feedback").document()
     feedback_ref.set({

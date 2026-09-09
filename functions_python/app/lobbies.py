@@ -8,7 +8,7 @@ from firebase_functions import https_fn
 from google.cloud.firestore_v1.base_query import FieldFilter
 
 from .analytics import bump_summary
-from .common import Err, authenticate_user, is_number, now_ms
+from .common import Err, authenticate_user, is_google_authed, is_number, now_ms
 from .firebase_app import db
 from .rate_limiting import check_rate_limit
 from .warmup import track_read, track_write, with_warmup
@@ -44,7 +44,7 @@ def createLobby(request: https_fn.CallableRequest) -> dict:
     player = request.data or {}
     authenticate_user(request.auth)
     user_id = request.auth.uid
-    bump_summary(["lobbiesCreated"], True)  # usage analytics
+    bump_summary(["lobbiesCreated"], is_google_authed(request.auth))  # usage analytics
     player_name = player.get("name", "Player")
 
     if not check_rate_limit(user_id, "createLobby", 3, 300000):
@@ -88,7 +88,7 @@ def joinLobby(request: https_fn.CallableRequest) -> dict:
     lobby_code = data.get("lobbyCode")
     authenticate_user(request.auth)
     user_id = request.auth.uid
-    bump_summary(["lobbiesJoined"], True)  # usage analytics
+    bump_summary(["lobbiesJoined"], is_google_authed(request.auth))  # usage analytics
 
     if not lobby_code or not isinstance(lobby_code, str) or lobby_code.strip() == "":
         raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid lobby code")
@@ -253,7 +253,7 @@ def startNewGame(request: https_fn.CallableRequest) -> dict:
     lobby_id = data.get("lobbyId")
     authenticate_user(request.auth)
     user_id = request.auth.uid
-    bump_summary(["gamesStarted"], True)  # usage analytics
+    bump_summary(["gamesStarted"], is_google_authed(request.auth))  # usage analytics
 
     if not lobby_id or not isinstance(lobby_id, str) or lobby_id.strip() == "":
         raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid lobbyId parameter")

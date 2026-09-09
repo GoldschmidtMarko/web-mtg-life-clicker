@@ -22,3 +22,14 @@ def safe_number(value, default=0):
 def authenticate_user(auth: https_fn.AuthData | None) -> None:
     if auth is None:
         raise https_fn.HttpsError(Err.UNAUTHENTICATED, "User must be signed in.")
+
+
+def is_google_authed(auth: https_fn.AuthData | None) -> bool:
+    """True only for a real Google-linked sign-in, not the anonymous auth
+    session every visitor gets by default. Used to keep the authed/anon
+    usage-analytics split meaningful now that "signed in" (any Firebase
+    Auth session) no longer implies "has a Google account"."""
+    if auth is None:
+        return False
+    token = auth.token or {}
+    return token.get("firebase", {}).get("sign_in_provider") == "google.com"
