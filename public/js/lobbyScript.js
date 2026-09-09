@@ -4,6 +4,7 @@ import { openCommanderModal } from "./commanderModalScript.js"
 import { getPlayerFrameHeightFromSnapshot } from "./util/playerFrameHeightFromSnapshot.js"
 import { firebaseConfig } from './util/firebaseConfig.js';
 import { playDiceAnimation } from './diceAnimation.js';
+import { ensureSignedIn } from './util/ensureAuth.js';
 
 // Initialize Firebase (only once per app)
 if (!firebase.apps.length) {
@@ -1521,8 +1522,10 @@ async function validateLobbyExists(lobbyId) {
 
 // --- Initialize Lobby ---
 if (lobbyId) {
-    // Validate lobby exists before initializing
-    validateLobbyExists(lobbyId).then(isValid => {
+    // A visitor who opens a lobby link directly (never having been through
+    // index.html first) needs a session before any authenticated call below
+    // will succeed. This is a no-op if one already exists.
+    ensureSignedIn().then(() => validateLobbyExists(lobbyId)).then(isValid => {
         if (isValid) {
             initializeLobbyUI(lobbyId);
             initializeControls(lobbyId);
