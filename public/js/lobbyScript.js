@@ -1524,8 +1524,8 @@ function showRulesToastIfNeeded() {
     if (!mode) return;
 
     const message = mode === 'google'
-        ? 'Signed in: your 3 most recent lobbies are always kept, others are removed after 30 days of inactivity.'
-        : 'This lobby is kept for 7 days of inactivity. Sign in with Google on the home page to keep your lobbies longer.';
+        ? 'Signed in: your 3 most recent lobbies are always kept. Others are removed after 7 days of inactivity.'
+        : 'This lobby is kept for 3 days of inactivity. Sign in with Google on the home page to always keep your 3 most recent lobbies (7 days for the rest).';
 
     const toast = document.createElement('div');
     toast.className = 'rules-toast alert alert-info';

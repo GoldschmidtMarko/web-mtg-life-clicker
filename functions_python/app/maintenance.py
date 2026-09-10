@@ -3,9 +3,9 @@
 Retention policy for cleanupOldLobbies (see the ownerIsAnonymous field set
 by createLobby):
   - Anonymous-owned lobbies: deleted after ANON_RETENTION_DAYS of inactivity.
-  - Google-owned lobbies: each owner's RECENT_LOBBIES_KEPT most-recently-
-    updated lobbies are always kept regardless of age; any others are
-    deleted once they pass AUTHED_RETENTION_DAYS of inactivity.
+  - Google-owned lobbies: deleted after AUTHED_RETENTION_DAYS of inactivity,
+    except each owner's RECENT_LOBBIES_KEPT most-recently-updated lobbies
+    are always kept regardless of age.
 Lobbies created before ownerIsAnonymous existed have no such field and are
 invisible to both queries below (Firestore equality filters never match a
 missing field) - a narrow, self-resolving gap rather than a migration, since
@@ -22,8 +22,8 @@ from .common import authenticate_user, now_ms
 from .firebase_app import db
 from .warmup import track_write, with_warmup
 
-ANON_RETENTION_DAYS = 7
-AUTHED_RETENTION_DAYS = 30
+ANON_RETENTION_DAYS = 3
+AUTHED_RETENTION_DAYS = 7
 RECENT_LOBBIES_KEPT = 3
 
 
