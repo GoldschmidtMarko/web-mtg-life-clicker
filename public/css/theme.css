@@ -294,6 +294,25 @@ a { color: inherit; }
 .alert-warning { border-left-color: #f59e0b; }
 .alert-success { border-left-color: var(--success); }
 
+/* Rules toast: a one-time, self-dismissing banner shown right after
+   creating a lobby (see lobbyScript.js), explaining how long it's kept. */
+.rules-toast {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  z-index: 60;
+  max-width: min(92vw, 26rem);
+  opacity: 0;
+  transform: translateX(-50%) translateY(-12px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+}
+.rules-toast.rules-toast-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* Form fields ---------------------------------------------------------- */
 
 .field {

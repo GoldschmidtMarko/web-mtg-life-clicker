@@ -1508,6 +1508,41 @@ function hideLobbyTimer() {
     }
 }
 
+// Shows a one-time, self-dismissing banner explaining how long this lobby
+// is kept, if index.html flagged (via sessionStorage) that we just came
+// from a Create Lobby click. Consumes the flag so it never shows again for
+// this tab (e.g. on a later reload or after navigating back and forth).
+function showRulesToastIfNeeded() {
+    const STORAGE_KEY = 'mtg-life-clicker-show-rules-toast';
+    let mode;
+    try {
+        mode = sessionStorage.getItem(STORAGE_KEY);
+        if (mode) sessionStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+        return;
+    }
+    if (!mode) return;
+
+    const message = mode === 'google'
+        ? 'Signed in: your 3 most recent lobbies are always kept, others are removed after 30 days of inactivity.'
+        : 'This lobby is kept for 7 days of inactivity. Sign in with Google on the home page to keep your lobbies longer.';
+
+    const toast = document.createElement('div');
+    toast.className = 'rules-toast alert alert-info';
+    toast.textContent = message;
+    toast.title = 'Click to dismiss';
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => toast.classList.add('rules-toast-visible'));
+
+    const dismiss = () => {
+        toast.classList.remove('rules-toast-visible');
+        setTimeout(() => toast.remove(), 350);
+    };
+    toast.addEventListener('click', dismiss);
+    setTimeout(dismiss, 7000);
+}
+
 // Function to validate if lobby exists using backend
 async function validateLobbyExists(lobbyId) {
     try {
@@ -1531,6 +1566,7 @@ if (lobbyId) {
             setupPlayerListener(lobbyId);
             listenToLobbyTimer(lobbyId);
             listenToLobbyDice(lobbyId);
+            showRulesToastIfNeeded();
         } else {
             console.error("Lobby not found!");
             window.location.href = 'index.html';
