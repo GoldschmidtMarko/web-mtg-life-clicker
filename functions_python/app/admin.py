@@ -86,6 +86,27 @@ def _users_overview(limit=15):
     return result
 
 
+def _lobby_events_list(limit=10):
+    """Most recent lobby create/join events with exact timestamps (newest first)."""
+    out = []
+    try:
+        q = (db.collection("lobby_events")
+               .order_by("createdAt", direction=firestore.Query.DESCENDING)
+               .limit(limit))
+        for doc in q.stream():
+            d = doc.to_dict() or {}
+            out.append({
+                "type": d.get("type") or "",
+                "lobbyId": d.get("lobbyId") or "",
+                "playerName": d.get("playerName") or "",
+                "authed": bool(d.get("authed")),
+                "createdAt": _ms(d.get("createdAt")),
+            })
+    except Exception as error:
+        print(f"usage _lobby_events_list error: {error}")
+    return out
+
+
 def _feedback_list(limit=100):
     """Most recent feedback submissions (newest first)."""
     out = []
@@ -126,5 +147,6 @@ def getUsageStats(request: https_fn.CallableRequest) -> dict:
         "summary": summary,
         "daily": _daily_series(),
         "users": _users_overview(),
+        "lobbyEvents": _lobby_events_list(),
         "feedback": _feedback_list(),
     }

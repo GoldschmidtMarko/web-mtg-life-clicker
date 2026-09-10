@@ -48,18 +48,13 @@ def cleanupOldLobbies(request: https_fn.CallableRequest) -> dict:
 
     for lobby_doc in old_lobbies:
         try:
-            lobby_ref = lobby_doc.reference
-
-            players_snapshot = list(lobby_ref.collection("players").get())
-            if players_snapshot:
-                player_batch = db.batch()
-                for player_doc in players_snapshot:
-                    player_batch.delete(player_doc.reference)
-                player_batch.commit()
-                track_write(f"cleanupOldLobbies - deleted {len(players_snapshot)} players from lobby {lobby_doc.id}")
-
-            lobby_ref.delete()
-            track_write(f"cleanupOldLobbies - deleted lobby {lobby_doc.id}")
+            # recursive_delete removes the lobby doc AND every subcollection
+            # under it (players, games, and each game's history) - a plain
+            # lobby_ref.delete() only removes the lobby doc itself and
+            # silently orphans the rest, which is how those subcollections
+            # were leaking storage before this fix.
+            db.recursive_delete(lobby_doc.reference)
+            track_write(f"cleanupOldLobbies - deleted lobby {lobby_doc.id} and its subcollections")
 
             deleted_count += 1
         except Exception as error:
