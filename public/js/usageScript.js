@@ -94,6 +94,29 @@ function renderUsers(users) {
         </table>`;
 }
 
+function renderLobbyEvents(items) {
+    const el = document.getElementById('lobby-events-table');
+    if (!items || !items.length) {
+        el.innerHTML = '<div class="usage-empty">No lobby activity yet.</div>';
+        return;
+    }
+    const body = items.map((e) => `
+        <tr>
+            <td class="name">${e.type === 'created' ? '➕ Created' : '🚪 Joined'}</td>
+            <td class="name">${escapeHtml(e.lobbyId || '—')}</td>
+            <td class="name">${escapeHtml(e.playerName || '—')}</td>
+            <td>${e.authed ? '👤 Signed-in' : '🕶 Anonymous'}</td>
+            <td class="when">${fmtDate(e.createdAt)}</td>
+        </tr>`).join('');
+    el.innerHTML = `
+        <table class="usage-table">
+            <thead><tr>
+                <th>Action</th><th>Lobby</th><th>Player</th><th>Account</th><th>Timestamp</th>
+            </tr></thead>
+            <tbody>${body}</tbody>
+        </table>`;
+}
+
 function renderFeedback(items) {
     const el = document.getElementById('feedback-list');
     if (!items || !items.length) {
@@ -182,6 +205,7 @@ function render(data) {
     renderSummary(data.summary || {});
     renderTimeline(data.daily || []);
     renderUsers(data.users || { total: 0, top: [] });
+    renderLobbyEvents(data.lobbyEvents || []);
     renderFeedback(data.feedback || []);
     show(dashboard);
 }

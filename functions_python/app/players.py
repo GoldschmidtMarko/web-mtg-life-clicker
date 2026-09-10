@@ -5,6 +5,7 @@ from firebase_functions import https_fn
 
 from .common import Err, authenticate_user, is_number, safe_number
 from .firebase_app import db
+from .lobbies import touch_lobby_activity
 from .rate_limiting import check_firestore_rate_limit, check_rate_limit, should_debounce_update
 from .warmup import track_read, track_write, with_warmup
 
@@ -65,6 +66,7 @@ def updatePlayer(request: https_fn.CallableRequest) -> dict:
     player_ref = db.collection("lobbies").document(lobby_id).collection("players").document(player_id)
     player_ref.update(updates)
     track_write(f"updatePlayer - {player_id} fields: {', '.join(updates.keys())}")
+    touch_lobby_activity(lobby_id)
 
     return {"success": True}
 
@@ -80,6 +82,7 @@ def deletePlayer(request: https_fn.CallableRequest) -> dict:
     player_ref = db.collection("lobbies").document(lobby_id).collection("players").document(player_id)
     player_ref.delete()
     track_write(f"deletePlayer - {player_id}")
+    touch_lobby_activity(lobby_id)
 
     return {"success": True}
 
@@ -104,6 +107,7 @@ def incrementPlayerField(request: https_fn.CallableRequest) -> dict:
     player_ref = db.collection("lobbies").document(lobby_id).collection("players").document(player_id)
     player_ref.update({field: firestore.Increment(value)})
     track_write(f"incrementPlayerField - {player_id} {field} by {value}")
+    touch_lobby_activity(lobby_id)
 
     return {"success": True}
 
@@ -130,6 +134,7 @@ def updateCommanderDamage(request: https_fn.CallableRequest) -> dict:
         track_write(f"updateCommanderDamage - update player {player_id}")
 
     _run(db.transaction())
+    touch_lobby_activity(lobby_id)
 
     return {"success": True}
 
@@ -200,6 +205,7 @@ def applyCombatDamage(request: https_fn.CallableRequest) -> dict:
 
     try:
         result = _run(db.transaction())
+        touch_lobby_activity(lobby_id)
         return {"success": True, "data": result}
     except https_fn.HttpsError:
         raise
@@ -230,6 +236,7 @@ def addPlayer(request: https_fn.CallableRequest) -> dict:
         players_ref.add(player_data)
 
     track_write(f"addPlayer - add player to lobby {lobby_id}")
+    touch_lobby_activity(lobby_id)
     return {"success": True}
 
 
@@ -259,5 +266,6 @@ def updatePlayerSettings(request: https_fn.CallableRequest) -> dict:
 
     player_ref.update(settings)
     track_write(f"updatePlayerSettings - update player {player_id}")
+    touch_lobby_activity(lobby_id)
 
     return {"success": True}

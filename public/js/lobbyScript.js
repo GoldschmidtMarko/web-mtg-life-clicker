@@ -37,7 +37,6 @@ const updatePlayer = functions.httpsCallable('updatePlayer');
 const deletePlayer = functions.httpsCallable('deletePlayer');
 const applyCombatDamage = functions.httpsCallable('applyCombatDamage');
 const addPlayer = functions.httpsCallable('addPlayer');
-const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
 const startTimer = functions.httpsCallable('startTimer');
 const rollDice = functions.httpsCallable('rollDice');
 const logGameChanges = functions.httpsCallable('logGameChanges');
@@ -547,10 +546,10 @@ async function handlePlayerFrameClick(event, lobbyId, playerDocument, attributeK
         if (!currentPlayer) return;
         const currentValue = currentPlayer.data()[attributeKey];
 
+        // updatePlayer refreshes the lobby's lastUpdated on the server now,
+        // so there's no need for a separate updateLobbyTimestamp call here.
         await updatePlayer({ lobbyId, playerId: playerDocument.id, updates: { [attributeKey]: currentValue + delta } });
-        // Update lobby last updated timestamp (optional)
-        await updateLobbyTimestamp({ lobbyId });
-        
+
         // Restore visual state
         setTimeout(() => {
             playerFrame.style.opacity = originalOpacity;

@@ -18,7 +18,6 @@ from app.lobbies import (
     rollDice,
     startNewGame,
     startTimer,
-    updateLobbyTimestamp,
     validateLobby,
 )
 from app.maintenance import cleanupOldLobbies, cleanupRateLimits
@@ -40,7 +39,7 @@ __all__ = [
     "getLifeChangeChart",
     "submitFeedback",
     "createLobby", "deleteGame", "getUserLobbies", "joinLobby", "logGameChanges", "rollDice", "startNewGame",
-    "startTimer", "updateLobbyTimestamp", "validateLobby",
+    "startTimer", "validateLobby",
     "cleanupOldLobbies", "cleanupRateLimits",
     "addPlayer", "applyCombatDamage", "deletePlayer", "getPlayers", "incrementPlayerField",
     "updateCommanderDamage", "updatePlayer", "updatePlayerSettings",

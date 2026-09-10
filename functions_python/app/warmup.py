@@ -21,7 +21,7 @@ from .firebase_app import PROCESS_START, db
 WARMUP_FUNCTIONS = [
     "savePlayerData", "createLobby", "joinLobby", "getUserLobbies", "getPlayers", "updatePlayer",
     "deletePlayer", "incrementPlayerField", "updateCommanderDamage",
-    "applyCombatDamage", "addPlayer", "updateLobbyTimestamp", "updatePlayerSettings",
+    "applyCombatDamage", "addPlayer", "updatePlayerSettings",
     "cleanupRateLimits", "cleanupOldLobbies", "startTimer", "rollDice", "logGameChanges", "startNewGame",
     "deleteGame", "recordPayInterest",
     "warmUpFunctions", "heartbeat", "validateLobby",

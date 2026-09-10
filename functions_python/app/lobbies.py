@@ -7,11 +7,22 @@ from firebase_admin import firestore
 from firebase_functions import https_fn
 from google.cloud.firestore_v1.base_query import FieldFilter
 
-from .analytics import bump_summary
+from .analytics import bump_summary, log_lobby_event
 from .common import Err, authenticate_user, is_google_authed, is_number, now_ms
 from .firebase_app import db
 from .rate_limiting import check_rate_limit
 from .warmup import track_read, track_write, with_warmup
+
+
+def touch_lobby_activity(lobby_id: str) -> None:
+    """Refreshes a lobby's lastUpdated so cleanupOldLobbies can tell it's
+    still active. Called from every player-mutating function (players.py)
+    that doesn't already write to the lobby doc itself. Best-effort: never
+    raises, since it's incidental to whatever action triggered it."""
+    try:
+        db.collection("lobbies").document(lobby_id).update({"lastUpdated": firestore.SERVER_TIMESTAMP})
+    except Exception as error:
+        print(f"touch_lobby_activity error for lobby {lobby_id}: {error}")
 
 
 def _next_game_number(lobby_ref) -> int:
@@ -44,7 +55,8 @@ def createLobby(request: https_fn.CallableRequest) -> dict:
     player = request.data or {}
     authenticate_user(request.auth)
     user_id = request.auth.uid
-    bump_summary(["lobbiesCreated"], is_google_authed(request.auth))  # usage analytics
+    owner_is_google_authed = is_google_authed(request.auth)
+    bump_summary(["lobbiesCreated"], owner_is_google_authed)  # usage analytics
     player_name = player.get("name", "Player")
 
     if not check_rate_limit(user_id, "createLobby", 3, 300000):
@@ -59,6 +71,7 @@ def createLobby(request: https_fn.CallableRequest) -> dict:
         "code": lobby_code,
         "ownerId": user_id,
         "ownerName": player_name,
+        "ownerIsAnonymous": not owner_is_google_authed,
         "createdAt": firestore.SERVER_TIMESTAMP,
         "lastUpdated": firestore.SERVER_TIMESTAMP,
         "currentGameId": game_ref.id,
@@ -74,6 +87,8 @@ def createLobby(request: https_fn.CallableRequest) -> dict:
         lobby_ref.collection("players").document(user_id).set({**player, "id": user_id})
         track_write("createLobby - player addition")
 
+        log_lobby_event("created", lobby_code, player_name, owner_is_google_authed)  # usage analytics
+
         return {"lobbyCode": lobby_code}
     except Exception as error:
         print(f"Error creating lobby: {error}")
@@ -88,7 +103,8 @@ def joinLobby(request: https_fn.CallableRequest) -> dict:
     lobby_code = data.get("lobbyCode")
     authenticate_user(request.auth)
     user_id = request.auth.uid
-    bump_summary(["lobbiesJoined"], is_google_authed(request.auth))  # usage analytics
+    joiner_is_google_authed = is_google_authed(request.auth)
+    bump_summary(["lobbiesJoined"], joiner_is_google_authed)  # usage analytics
 
     if not lobby_code or not isinstance(lobby_code, str) or lobby_code.strip() == "":
         raise https_fn.HttpsError(Err.INVALID_ARGUMENT, "Missing or invalid lobby code")
@@ -120,6 +136,8 @@ def joinLobby(request: https_fn.CallableRequest) -> dict:
 
         _run(db.transaction())
         track_write("joinLobby - player addition")
+
+        log_lobby_event("joined", lobby_code, player.get("name") or "Player", joiner_is_google_authed)  # usage analytics
 
         return {"success": True, "lobbyCode": lobby_code}
     except https_fn.HttpsError:
@@ -187,19 +205,6 @@ def validateLobby(request: https_fn.CallableRequest) -> dict:
 
 
 @https_fn.on_call()
-@with_warmup("updateLobbyTimestamp")
-def updateLobbyTimestamp(request: https_fn.CallableRequest) -> dict:
-    lobby_id = (request.data or {}).get("lobbyId")
-    authenticate_user(request.auth)
-
-    lobby_ref = db.collection("lobbies").document(lobby_id)
-    lobby_ref.update({"lastUpdated": firestore.SERVER_TIMESTAMP})
-    track_write(f"updateLobbyTimestamp - lobby {lobby_id}")
-
-    return {"success": True}
-
-
-@https_fn.on_call()
 @with_warmup("startTimer")
 def startTimer(request: https_fn.CallableRequest) -> dict:
     data = request.data or {}
@@ -216,7 +221,10 @@ def startTimer(request: https_fn.CallableRequest) -> dict:
     now = now_ms()
     timer_end = now + duration * 60 * 1000
 
-    lobby_ref.update({"timerEnd": timer_end, "timerDuration": duration, "timerStartedAt": now})
+    lobby_ref.update({
+        "timerEnd": timer_end, "timerDuration": duration, "timerStartedAt": now,
+        "lastUpdated": firestore.SERVER_TIMESTAMP,
+    })
     track_write(f"startTimer - lobby {lobby_id} for {duration} min")
 
     return {"success": True, "timerEnd": timer_end}
@@ -240,7 +248,10 @@ def rollDice(request: https_fn.CallableRequest) -> dict:
     rolled_at = now_ms()
 
     lobby_ref = db.collection("lobbies").document(lobby_id)
-    lobby_ref.update({"diceResult": result, "diceSides": sides, "diceRolledAt": rolled_at})
+    lobby_ref.update({
+        "diceResult": result, "diceSides": sides, "diceRolledAt": rolled_at,
+        "lastUpdated": firestore.SERVER_TIMESTAMP,
+    })
     track_write(f"rollDice - lobby {lobby_id}: d{sides} -> {result}")
 
     return {"success": True, "result": result, "sides": sides, "rolledAt": rolled_at}
@@ -269,7 +280,7 @@ def startNewGame(request: https_fn.CallableRequest) -> dict:
     game_ref.set({"gameNumber": game_number, "startedAt": now_ms()})
     track_write(f"startNewGame - lobby {lobby_id}: game #{game_number}")
 
-    lobby_ref.update({"currentGameId": game_ref.id})
+    lobby_ref.update({"currentGameId": game_ref.id, "lastUpdated": firestore.SERVER_TIMESTAMP})
 
     return {"success": True, "gameId": game_ref.id, "gameNumber": game_number}
 
@@ -299,6 +310,7 @@ def deleteGame(request: https_fn.CallableRequest) -> dict:
     game_ref = lobby_ref.collection("games").document(game_id)
     db.recursive_delete(game_ref)
     track_write(f"deleteGame - lobby {lobby_id} game {game_id}")
+    lobby_ref.update({"lastUpdated": firestore.SERVER_TIMESTAMP})
 
     return {"success": True}
 
@@ -349,5 +361,6 @@ def logGameChanges(request: https_fn.CallableRequest) -> dict:
     history_ref = lobby_ref.collection("games").document(game_id).collection("history").document()
     history_ref.set({"createdAt": now, "entries": entries})
     track_write(f"logGameChanges - lobby {lobby_id} game {game_id}: {len(entries)} player(s)")
+    lobby_ref.update({"lastUpdated": firestore.SERVER_TIMESTAMP})
 
     return {"success": True, "historyId": history_ref.id, "gameId": game_id}

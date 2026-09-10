@@ -19,7 +19,6 @@ if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
 
 // Firebase callable functions
 const updatePlayer = functions.httpsCallable('updatePlayer');
-const updateLobbyTimestamp = functions.httpsCallable('updateLobbyTimestamp');
 
 // Helper function to get a player document
 async function getPlayer(lobbyId, playerId) {
@@ -147,14 +146,13 @@ async function onClickCommanderDamageControl(lobbyId, playerDocumentId, otherPla
             commanderDamages.push(commanderDamage.toFirestoreObject());
         }
 
+        // Goes through updatePlayer, which refreshes the lobby's lastUpdated
+        // on the server now, so there's no need for a separate call here.
         await updateCommanderDamage(lobbyId, playerDocumentId, commanderDamages);
 
         // After successful transaction, re-render the modal with the updated data
         const updatedPlayerDocument = await getPlayer(lobbyId, playerDocumentId);
         openCommanderModal(lobbyId, updatedPlayerDocument, snapshot);
-
-        // Update lobby last updated timestamp (optional)
-        await updateLobbyTimestamp({ lobbyId });
 
     } catch (error) {
         console.error(`Error updating commander damage for ${playerDocumentId}:`, error);
