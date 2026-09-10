@@ -127,6 +127,56 @@ def _feedback_list(limit=100):
     return out
 
 
+@https_fn.on_call(timeout_sec=120)
+@with_warmup("backfillLobbyOwnership")
+def backfillLobbyOwnership(request: https_fn.CallableRequest) -> dict:
+    """One-time migration: sets ownerIsAnonymous on lobbies that predate that
+    field (created before the tiered retention policy shipped), so
+    cleanupOldLobbies can see them - it currently can't, since a Firestore
+    equality filter never matches a document where the field is missing.
+
+    Inferred from whether players/{ownerId} exists: that profile doc is only
+    ever created by savePlayerData, which the client only calls for a real
+    Google account, never an anonymous session - so its presence means the
+    owner was signed in with Google at some point.
+
+    Admin-only. Safe to re-run: already-backfilled lobbies are skipped.
+    """
+    authenticate_user(request.auth)
+    if not _is_admin(request):
+        raise https_fn.HttpsError(Err.PERMISSION_DENIED, "Not authorized.")
+
+    checked = 0
+    updated = 0
+    skipped = 0
+    owner_is_anonymous_cache: dict[str, bool] = {}
+
+    for doc in db.collection("lobbies").stream():
+        checked += 1
+        data = doc.to_dict() or {}
+        if "ownerIsAnonymous" in data:
+            skipped += 1
+            continue
+
+        owner_id = data.get("ownerId")
+        if not owner_id:
+            continue  # nothing to infer this from; leave it alone
+
+        if owner_id not in owner_is_anonymous_cache:
+            profile = db.collection("players").document(owner_id).get()
+            owner_is_anonymous_cache[owner_id] = not profile.exists
+
+        doc.reference.update({"ownerIsAnonymous": owner_is_anonymous_cache[owner_id]})
+        updated += 1
+
+    return {
+        "message": f"Checked {checked} lobbies: backfilled {updated}, {skipped} already had the field.",
+        "checked": checked,
+        "updated": updated,
+        "skipped": skipped,
+    }
+
+
 @https_fn.on_call()
 @with_warmup("getUsageStats")
 def getUsageStats(request: https_fn.CallableRequest) -> dict:
