@@ -65,6 +65,11 @@ const closeMyLobbiesModalButton = document.getElementById('close-my-lobbies-moda
 
 let currentUser = null;
 
+// Read by lobby.html right after a Create Lobby redirect to show a one-time
+// "how long is this kept" toast. sessionStorage (not localStorage) so it
+// only ever fires for the tab that just created the lobby, once.
+const RULES_TOAST_STORAGE_KEY = 'mtg-life-clicker-show-rules-toast';
+
 // The player-name field is shared by Create and Join. Remembered locally so
 // an anonymous player (no Google profile to draw a name from) doesn't have
 // to retype it every visit.
@@ -531,6 +536,13 @@ if (createLobbyBtn) {
             
             const result = await createLobby(playerClass.toFirestoreObject());
             const lobbyCode = result.data.lobbyCode;
+            // Read by lobby.html on arrival to show a one-time "how long is
+            // this kept" toast matching how this lobby was created.
+            try {
+                sessionStorage.setItem(RULES_TOAST_STORAGE_KEY, currentUser.isAnonymous ? 'anonymous' : 'google');
+            } catch (storageError) {
+                // Non-fatal - the toast just won't show.
+            }
             window.location.href = 'lobby.html?lobbyId=' + lobbyCode;
         } catch (error) {
             console.error('Error creating lobby:', error);
