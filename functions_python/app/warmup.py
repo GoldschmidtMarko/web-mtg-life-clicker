@@ -15,8 +15,9 @@ from datetime import datetime, timezone
 
 from firebase_functions import https_fn
 
-from .common import Err, now_ms
+from .common import Err, authenticate_user, now_ms
 from .firebase_app import PROCESS_START, db
+from .rate_limiting import check_rate_limit
 
 WARMUP_FUNCTIONS = [
     "savePlayerData", "createLobby", "joinLobby", "getUserLobbies", "getPlayers", "updatePlayer",
@@ -125,6 +126,10 @@ def with_warmup(function_name: str):
 
 @https_fn.on_call()
 def quickWarmup(request: https_fn.CallableRequest) -> dict:
+    authenticate_user(request.auth)
+    if not check_rate_limit(request.auth.uid, "quickWarmup", 5, 60000):
+        raise https_fn.HttpsError(Err.RESOURCE_EXHAUSTED, "Rate limit exceeded. Please slow down.")
+
     timestamp = datetime.now(timezone.utc).isoformat()
     print(f"Quick warmup called at {timestamp}")
 
@@ -139,6 +144,10 @@ def quickWarmup(request: https_fn.CallableRequest) -> dict:
 
 @https_fn.on_call()
 def warmUpFunctions(request: https_fn.CallableRequest) -> dict:
+    authenticate_user(request.auth)
+    if not check_rate_limit(request.auth.uid, "warmUpFunctions", 5, 60000):
+        raise https_fn.HttpsError(Err.RESOURCE_EXHAUSTED, "Rate limit exceeded. Please slow down.")
+
     track_function_call("warmUpFunctions")
     print("Manual warmup triggered")
 
@@ -159,6 +168,10 @@ def warmUpFunctions(request: https_fn.CallableRequest) -> dict:
 
 @https_fn.on_call()
 def heartbeat(request: https_fn.CallableRequest) -> dict:
+    authenticate_user(request.auth)
+    if not check_rate_limit(request.auth.uid, "heartbeat", 5, 60000):
+        raise https_fn.HttpsError(Err.RESOURCE_EXHAUSTED, "Rate limit exceeded. Please slow down.")
+
     track_function_call("heartbeat")
     timestamp = datetime.now(timezone.utc).isoformat()
     print(f"Heartbeat received at {timestamp}")

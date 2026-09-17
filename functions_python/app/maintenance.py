@@ -18,8 +18,9 @@ from firebase_admin import firestore
 from firebase_functions import https_fn
 from google.cloud.firestore_v1.base_query import FieldFilter
 
-from .common import authenticate_user, now_ms
+from .common import Err, authenticate_user, now_ms
 from .firebase_app import db
+from .rate_limiting import check_firestore_rate_limit
 from .warmup import track_write, with_warmup
 
 ANON_RETENTION_DAYS = 3
@@ -31,6 +32,11 @@ RECENT_LOBBIES_KEPT = 3
 @with_warmup("cleanupRateLimits")
 def cleanupRateLimits(request: https_fn.CallableRequest) -> dict:
     authenticate_user(request.auth)
+    user_id = request.auth.uid
+
+    if not check_firestore_rate_limit(user_id, "cleanupRateLimits", 3, 300000):
+        raise https_fn.HttpsError(Err.RESOURCE_EXHAUSTED,
+                                   "Rate limit exceeded. You can only run cleanup 3 times per 5 minutes.")
 
     now = now_ms()
     rate_limits_ref = db.collection("rateLimits")
@@ -65,6 +71,11 @@ def _owners_recent_lobby_ids(lobbies_ref, owner_id: str) -> set:
 @with_warmup("cleanupOldLobbies")
 def cleanupOldLobbies(request: https_fn.CallableRequest) -> dict:
     authenticate_user(request.auth)
+    user_id = request.auth.uid
+
+    if not check_firestore_rate_limit(user_id, "cleanupOldLobbies", 3, 300000):
+        raise https_fn.HttpsError(Err.RESOURCE_EXHAUSTED,
+                                   "Rate limit exceeded. You can only run cleanup 3 times per 5 minutes.")
 
     now = datetime.now(timezone.utc)
     anon_cutoff = now - timedelta(days=ANON_RETENTION_DAYS)
