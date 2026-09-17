@@ -1,3 +1,4 @@
 firebase-functions>=0.6.0
 firebase-admin>=7.0.0
 matplotlib>=3.8.0
+google-cloud-functions>=1.19.0
