@@ -38,7 +38,8 @@
   },
   "functions": {
     "source": "functions_python",
-    "runtime": "python312"
+    "runtime": "python312",
+    "ignore": ["venv", "__pycache__", ".git", "firebase-debug.log", "firebase-debug.*.log", "*.local"]
   },
   "firestore": {
     "rules": "firestore.rules",

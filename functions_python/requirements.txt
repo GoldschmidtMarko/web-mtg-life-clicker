@@ -2,3 +2,7 @@ firebase-functions>=0.6.0
 firebase-admin>=7.0.0
 matplotlib>=3.8.0
 google-cloud-functions>=1.19.0
+
+# Same pin as creative-workspace: 2.35.0 broke Firestore calls on the "(default)" database
+# (googleapis/google-cloud-python#18207).
+google-api-core<2.35.0
